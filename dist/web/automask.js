@@ -1,0 +1,2 @@
+var AutoMask = (function () {
+})();

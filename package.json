@@ -1,0 +1,35 @@
+{
+    "name": "automask",
+    "version": "0.0.1",
+    "description": "Auto masks your inputs without setting JavaScript.",
+    "scripts": {
+        "build": "sh build.sh",
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "author": "ECRomaneli",
+    "keywords": [
+        "automask",
+        "auto-mask",
+        "mask",
+        "numbermask",
+        "format",
+        "text-mask",
+        "input-mask",
+        "input",
+        "input-text",
+        "no-js"
+    ],
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/ECRomaneli/automask.git"
+    },
+    "bugs": {
+        "url": "https://github.com/ECRomaneli/automask/issues"
+    },
+    "homepage": "https://github.com/ECRomaneli/automask#readme",
+    "devDependencies": {
+        "typescript": "3.5.3",
+        "uglify-js": "3.6.0"
+    },
+    "license": "MIT"
+}
