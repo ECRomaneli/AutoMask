@@ -18,32 +18,91 @@ interface MaskElement extends Element {
     autoMask: AutoMask;
 }
 
+enum DirectionEnum {
+    FORWARD = 'forward', BACKWARD = 'backward'
+}
+
 (() => {
-    const   DOC: Document = document,
+    const   ATTR = {
+                MASK: 'mask',
+                PREFIX: 'prefix',
+                SUFFIX: 'suffix',
+                DIRECTION: 'direction'
+            },
+            DOC: Document = document,
             MASK_PATTERN: RegExp = /^(<|>)?(\[([^\]]*)])?([^[]*)(\[([^\]]*)])?$/,
-            MASK_ATTR: string = 'mask',
-            MASK_SELECTOR: string = `[${MASK_ATTR}]`,
+            MASK_SELECTOR: string = `[${ATTR.MASK}]`,
             RAW_NAME_ATTR: string = 'raw-name';
 
     function main() {
         let inputs: NodeListOf<Element> = query(MASK_SELECTOR);
-        each(inputs, prepareInput);
+        each(inputs, (_i, el) => {
+            el.addEventListener('input', () => {
+                let value = el.value + '',
+                    mask = el.getAttribute(ATTR.MASK),
+                    direction: DirectionEnum = el.getAttribute(ATTR.DIRECTION),
+                    length = mask.length,
+                    prefix = el.getAttribute(ATTR.PREFIX) || '',
+                    suffix = el.getAttribute(ATTR.SUFFIX) || '',
+                    newValue = prefix,
+                    selection = void 0;
+
+                value = value.replace(/[\D]/g, '');
+                value = removeZeros(value, direction);
+
+                if (value.length === 0) {
+                    selection = 0;
+                }
+
+                if (!direction || direction === DirectionEnum.FORWARD) {
+                    let valuePos = 0;
+                    for (let i = 0; i < length; i++) {
+                        let char = mask.charAt(i),
+                            death = valuePos >= value.length;
+
+                        if (death && selection == void 0) {
+                            selection = i;
+                        }
+
+                        if (char === '_') {
+                            if (death) { break; }
+
+                            newValue += value.charAt(valuePos++);
+                            continue;
+                        }
+
+                        if (char.match(/[0-9]/)) {
+                            if (death) {
+                                newValue += char;
+                            } else {
+                                newValue += value.charAt(valuePos++);
+                            }
+                            continue;
+                        }
+
+                        if (death) { break; }
+
+                        newValue += char;
+                    }
+                }
+
+                newValue += el.getAttribute(ATTR.SUFFIX) || '';
+                el.value = newValue;
+
+                if (selection === void 0) {
+                    el.selectionStart = el.selectionEnd = newValue.length - suffix.length;
+                    return;
+                }
+                el.selectionStart = el.selectionEnd = selection + prefix.length;
+            });
+        });
     }
 
-    function prepareInput(el: MaskElement): void {
-        let rawMask: RegExpMatchArray = el.getAttribute(MASK_ATTR).match(MASK_PATTERN);
-        el.autoMask = {
-            direction:  rawMask[1] || '>',
-            prefix:     rawMask[3] || '',
-            pattern:    rawMask[4],
-            suffix:     rawMask[6] || ''
-        };
-
-        if (el.autoMask.pattern === void 0) {
-            console.error('Pattern not found!');
-            el.removeAttribute(MASK_ATTR);
-            el.setAttribute(MASK_ATTR + '-error');
+    function removeZeros(value: string, direction: DirectionEnum) {
+        if (!direction || direction === DirectionEnum.FORWARD) {
+            return value.replace(/0*$/, '');
         }
+        return value.replace(/^0*/, '');
     }
 
     function query(querySelector: string): NodeListOf<Element> {
