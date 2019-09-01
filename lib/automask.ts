@@ -29,12 +29,20 @@
         return str.length === 0;
     }
 
-    function isIndexOut(str: string, index: number) {
+    function isIndexOut(str: string, index: number): boolean {
         return index < 0 || index >= str.length;
     }
 
-    function equals(str: string, matchesArr: Array<string>) {
+    function equals(str: string, matchesArr: Array<string>): boolean {
         return matchesArr.some(match => str === match);
+    }
+
+    function reverse(str: string): string {
+        var newString = "";
+        for (var i = str.length - 1; i >= 0; i--) {
+            newString += str[i];
+        }
+        return newString;
     }
 
     function getAutoMask(el: HTMLInputElement): AutoMask {
@@ -63,33 +71,50 @@
     function onInputChange(el) {
         let mask = getAutoMask(el),
             length = mask.pattern.length,
-            value = mask.prefix,
-            selection = void 0,
+            value = '',
+            selection,
             valuePos = 0;
 
         if (isEmpty(mask.value)) { selection = 0; }
 
-        if (mask.direction === DirectionEnum.FORWARD) {
-            for (let i = 0; i < length; i++) {
-                let maskChar = mask.pattern.charAt(i);
+        if (mask.direction === DirectionEnum.BACKWARD) {
+            mask.pattern = reverse(mask.pattern);
+            mask.value = reverse(mask.value);
+        } 
 
-                if (isIndexOut(mask.value, valuePos)) {
-                    if (selection === void 0) { selection = i; }
-                    if (maskChar !== '0') { break; }
-                    value += maskChar;
-                    continue;
-                }
+        for (let i = 0; i < length; i++) {
+            let maskChar = mask.pattern.charAt(i);
 
-                value += equals(maskChar, ['_', '0']) ? mask.value.charAt(valuePos++) : maskChar;
+            if (isIndexOut(mask.value, valuePos)) {
+                if (selection === void 0) { selection = i; }
+                if (maskChar !== '0' && !isZero(mask.pattern, i)) { break; }
+                value += maskChar;
+                continue;
             }
-        }
-        el.value = value + mask.suffix;
 
-        if (selection === void 0) {
-            el.selectionStart = el.selectionEnd = value.length - mask.suffix.length;
+            value += equals(maskChar, ['_', '0']) ? mask.value.charAt(valuePos++) : maskChar;
+        }
+
+        if (mask.direction === DirectionEnum.BACKWARD) {
+            value = reverse(value);
+        }
+
+        el.value = mask.prefix + value + mask.suffix;
+
+        if (selection === void 0 || mask.direction === DirectionEnum.BACKWARD) {
+            el.selectionStart = el.selectionEnd = el.value.length - mask.suffix.length;
         } else {
             el.selectionStart = el.selectionEnd = selection + mask.prefix.length;
         }
+    }
+
+    function isZero(str: string, index: number): boolean {
+        while(!isIndexOut(str, index)) {
+            let char = str.charAt(index++);
+            if (char === '0') { return true; }
+            if (char === '_') { return false; }
+        }
+        return false;
     }
 
     function removeZeros(value: string, direction: DirectionEnum) {

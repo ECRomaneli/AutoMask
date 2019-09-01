@@ -28,6 +28,13 @@
     function equals(str, matchesArr) {
         return matchesArr.some(function (match) { return str === match; });
     }
+    function reverse(str) {
+        var newString = "";
+        for (var i = str.length - 1; i >= 0; i--) {
+            newString += str[i];
+        }
+        return newString;
+    }
     function getAutoMask(el) {
         var value = el.value + '', direction = el.getAttribute(AttrEnum.DIRECTION) || DirectionEnum.FORWARD;
         value = removeZeros(value.replace(/\D/g, ''), direction);
@@ -45,33 +52,50 @@
         each(inputs, function (_i, el) { el.addEventListener(EVENT, function () { onInputChange(el); }); });
     }
     function onInputChange(el) {
-        var mask = getAutoMask(el), length = mask.pattern.length, value = mask.prefix, selection = void 0, valuePos = 0;
+        var mask = getAutoMask(el), length = mask.pattern.length, value = '', selection, valuePos = 0;
         if (isEmpty(mask.value)) {
             selection = 0;
         }
-        if (mask.direction === DirectionEnum.FORWARD) {
-            for (var i = 0; i < length; i++) {
-                var maskChar = mask.pattern.charAt(i);
-                if (isIndexOut(mask.value, valuePos)) {
-                    if (selection === void 0) {
-                        selection = i;
-                    }
-                    if (maskChar !== '0') {
-                        break;
-                    }
-                    value += maskChar;
-                    continue;
-                }
-                value += equals(maskChar, ['_', '0']) ? mask.value.charAt(valuePos++) : maskChar;
-            }
+        if (mask.direction === DirectionEnum.BACKWARD) {
+            mask.pattern = reverse(mask.pattern);
+            mask.value = reverse(mask.value);
         }
-        el.value = value + mask.suffix;
-        if (selection === void 0) {
-            el.selectionStart = el.selectionEnd = value.length - mask.suffix.length;
+        for (var i = 0; i < length; i++) {
+            var maskChar = mask.pattern.charAt(i);
+            if (isIndexOut(mask.value, valuePos)) {
+                if (selection === void 0) {
+                    selection = i;
+                }
+                if (maskChar !== '0' && !isZero(mask.pattern, i)) {
+                    break;
+                }
+                value += maskChar;
+                continue;
+            }
+            value += equals(maskChar, ['_', '0']) ? mask.value.charAt(valuePos++) : maskChar;
+        }
+        if (mask.direction === DirectionEnum.BACKWARD) {
+            value = reverse(value);
+        }
+        el.value = mask.prefix + value + mask.suffix;
+        if (selection === void 0 || mask.direction === DirectionEnum.BACKWARD) {
+            el.selectionStart = el.selectionEnd = el.value.length - mask.suffix.length;
         }
         else {
             el.selectionStart = el.selectionEnd = selection + mask.prefix.length;
         }
+    }
+    function isZero(str, index) {
+        while (!isIndexOut(str, index)) {
+            var char = str.charAt(index++);
+            if (char === '0') {
+                return true;
+            }
+            if (char === '_') {
+                return false;
+            }
+        }
+        return false;
     }
     function removeZeros(value, direction) {
         if (!direction || direction === DirectionEnum.FORWARD) {
