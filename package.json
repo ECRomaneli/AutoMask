@@ -1,6 +1,6 @@
 {
     "name": "automask",
-    "version": "0.0.2",
+    "version": "0.1.0",
     "description": "Auto masks your inputs without setting JavaScript.",
     "scripts": {
         "build": "sh build.sh",
