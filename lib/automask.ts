@@ -96,7 +96,8 @@
             oldSelection = el.selectionStart,
             valuePos = 0;
 
-        if (isEmpty(rawValue)) { newSelection = 0; }
+        // Fix IE11 input loop bug
+        if (isEmpty(rawValue)) { return; }
 
         for (var i = 0; i < length; i++) {
             let maskChar = mask.pattern.charAt(i);
@@ -106,16 +107,12 @@
                     newSelection = i;
                     console.log(oldSelection, i);
                 }
-                if (!mask.showMask && !isZero(mask.pattern, i)) {
-                    // Fix IE11 input loop bug
-                    if (i === 0) { return; }
-                    break;
-                }
+                if (!mask.showMask && !isZero(mask.pattern, i)) { break; }
                 value += maskChar;
-                continue;
+            } else {
+                
+                value += equals(maskChar, ['_', '0']) ? rawValue.charAt(valuePos++) : maskChar;
             }
-
-            value += equals(maskChar, ['_', '0']) ? rawValue.charAt(valuePos++) : maskChar;
         }
         
         mask.value = value;

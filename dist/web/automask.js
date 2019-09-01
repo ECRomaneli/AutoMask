@@ -79,35 +79,33 @@
         }
     }
     function onInputChange(el) {
-        var mask = AutoMask.getAutoMask(el), length = mask.pattern.length, rawValue = mask.getRawValue(), value = '', selection, _selectionStart = el.selectionStart, _selectionEnd = el.selectionEnd, valuePos = 0;
+        var mask = AutoMask.getAutoMask(el), length = mask.pattern.length, rawValue = mask.getRawValue(), value = '', newSelection, oldSelection = el.selectionStart, valuePos = 0;
+        // Fix IE11 input loop bug
         if (isEmpty(rawValue)) {
-            selection = 0;
+            return;
         }
         for (var i = 0; i < length; i++) {
             var maskChar = mask.pattern.charAt(i);
             if (isIndexOut(rawValue, valuePos)) {
-                if (selection === void 0) {
-                    selection = i;
-                    console.log(_selectionStart, _selectionEnd, i);
+                if (newSelection === void 0) {
+                    newSelection = i;
+                    console.log(oldSelection, i);
                 }
                 if (!mask.showMask && !isZero(mask.pattern, i)) {
-                    // Fix IE11 input loop bug
-                    if (i === 0) {
-                        return;
-                    }
                     break;
                 }
                 value += maskChar;
-                continue;
             }
-            value += equals(maskChar, ['_', '0']) ? rawValue.charAt(valuePos++) : maskChar;
+            else {
+                value += equals(maskChar, ['_', '0']) ? rawValue.charAt(valuePos++) : maskChar;
+            }
         }
         mask.value = value;
-        if (selection === void 0 || mask.dir === DirectionEnum.BACKWARD) {
+        if (newSelection === void 0 || mask.dir === DirectionEnum.BACKWARD) {
             el.selectionStart = el.selectionEnd = el.value.length - mask.suffix.length;
         }
         else {
-            el.selectionStart = el.selectionEnd = selection + mask.prefix.length;
+            el.selectionStart = el.selectionEnd = newSelection + mask.prefix.length;
         }
     }
     function isEmpty(str) {
