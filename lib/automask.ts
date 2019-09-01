@@ -7,95 +7,89 @@
  * Group 6 - Suffix
  */
 
-interface AutoMask {
-    direction: string;
-    prefix: string;
-    pattern: string;
-    suffix: string;
-}
-
-interface MaskElement extends Element {
-    autoMask: AutoMask;
-}
-
-enum DirectionEnum {
-    FORWARD = 'forward', BACKWARD = 'backward'
-}
-
 (() => {
-    const   ATTR = {
-                MASK: 'mask',
-                PREFIX: 'prefix',
-                SUFFIX: 'suffix',
-                DIRECTION: 'direction'
-            },
-            DOC: Document = document,
-            MASK_PATTERN: RegExp = /^(<|>)?(\[([^\]]*)])?([^[]*)(\[([^\]]*)])?$/,
-            MASK_SELECTOR: string = `[${ATTR.MASK}]`,
-            RAW_NAME_ATTR: string = 'raw-name';
+
+    enum DirectionEnum {
+        FORWARD = 'forward', BACKWARD = 'backward'
+    }
+
+    enum AttrEnum {
+        PATTERN = 'pattern', PREFIX = 'prefix', SUFFIX= 'suffix', DIRECTION= 'direction'
+    }
+    
+    interface AutoMask {
+        direction: DirectionEnum;
+        prefix: string;
+        suffix: string;
+        pattern: string;
+        value: string;
+    }
+
+    function isEmpty(str: string): boolean {
+        return str.length === 0;
+    }
+
+    function isIndexOut(str: string, index: number) {
+        return index < 0 || index >= str.length;
+    }
+
+    function equals(str: string, matchesArr: Array<string>) {
+        return matchesArr.some(match => str === match);
+    }
+
+    function getAutoMask(el: HTMLInputElement): AutoMask {
+        let value = el.value + '',
+            direction: DirectionEnum = <DirectionEnum> el.getAttribute(AttrEnum.DIRECTION) || DirectionEnum.FORWARD;
+        value = removeZeros(value.replace(/\D/g, ''), direction);
+
+        return <AutoMask> {
+            direction: direction,
+            prefix: el.getAttribute(AttrEnum.PREFIX) || '',
+            suffix: el.getAttribute(AttrEnum.SUFFIX) || '',
+            pattern: el.getAttribute(AttrEnum.PATTERN),
+            value: value
+        };
+    }
+
+    const   DOC: Document = document,
+            MASK_SELECTOR: string = `[type="mask"]`,
+            EVENT: string = 'input';
 
     function main() {
         let inputs: NodeListOf<Element> = query(MASK_SELECTOR);
-        each(inputs, (_i, el) => {
-            el.addEventListener('input', () => {
-                let value = el.value + '',
-                    mask = el.getAttribute(ATTR.MASK),
-                    direction: DirectionEnum = el.getAttribute(ATTR.DIRECTION),
-                    length = mask.length,
-                    prefix = el.getAttribute(ATTR.PREFIX) || '',
-                    suffix = el.getAttribute(ATTR.SUFFIX) || '',
-                    newValue = prefix,
-                    selection = void 0;
+        each(inputs, (_i, el) => { el.addEventListener(EVENT, () => { onInputChange(el); }); });
+    }
 
-                value = value.replace(/[\D]/g, '');
-                value = removeZeros(value, direction);
+    function onInputChange(el) {
+        let mask = getAutoMask(el),
+            length = mask.pattern.length,
+            value = mask.prefix,
+            selection = void 0,
+            valuePos = 0;
 
-                if (value.length === 0) {
-                    selection = 0;
+        if (isEmpty(mask.value)) { selection = 0; }
+
+        if (mask.direction === DirectionEnum.FORWARD) {
+            for (let i = 0; i < length; i++) {
+                let maskChar = mask.pattern.charAt(i);
+
+                if (isIndexOut(mask.value, valuePos)) {
+                    if (selection === void 0) { selection = i; }
+                    if (maskChar !== '0') { break; }
+                    value += maskChar;
+                    continue;
                 }
 
-                if (!direction || direction === DirectionEnum.FORWARD) {
-                    let valuePos = 0;
-                    for (let i = 0; i < length; i++) {
-                        let char = mask.charAt(i),
-                            death = valuePos >= value.length;
+                value += equals(maskChar, ['_', '0']) ? mask.value.charAt(valuePos++) : maskChar;
+            }
+        }
+        el.value = value + mask.suffix;
 
-                        if (death && selection == void 0) {
-                            selection = i;
-                        }
-
-                        if (char === '_') {
-                            if (death) { break; }
-
-                            newValue += value.charAt(valuePos++);
-                            continue;
-                        }
-
-                        if (char.match(/[0-9]/)) {
-                            if (death) {
-                                newValue += char;
-                            } else {
-                                newValue += value.charAt(valuePos++);
-                            }
-                            continue;
-                        }
-
-                        if (death) { break; }
-
-                        newValue += char;
-                    }
-                }
-
-                newValue += el.getAttribute(ATTR.SUFFIX) || '';
-                el.value = newValue;
-
-                if (selection === void 0) {
-                    el.selectionStart = el.selectionEnd = newValue.length - suffix.length;
-                    return;
-                }
-                el.selectionStart = el.selectionEnd = selection + prefix.length;
-            });
-        });
+        if (selection === void 0) {
+            el.selectionStart = el.selectionEnd = value.length - mask.suffix.length;
+        } else {
+            el.selectionStart = el.selectionEnd = selection + mask.prefix.length;
+        }
     }
 
     function removeZeros(value: string, direction: DirectionEnum) {
