@@ -1,14 +1,4 @@
-/**
- * RAW MASK PATTERN
- * >[prefix]pattern[suffix]
- * Group 1 - Direction
- * Group 3 - Prefix
- * Group 4 - Pattern
- * Group 6 - Suffix
- */
-
 (() => {
-
     enum DirectionEnum {
         FORWARD = 'forward', BACKWARD = 'backward'
     }
@@ -25,47 +15,16 @@
         value: string;
     }
 
-    function isEmpty(str: string): boolean {
-        return str.length === 0;
-    }
-
-    function isIndexOut(str: string, index: number): boolean {
-        return index < 0 || index >= str.length;
-    }
-
-    function equals(str: string, matchesArr: Array<string>): boolean {
-        return matchesArr.some(match => str === match);
-    }
-
-    function reverse(str: string): string {
-        var newString = "";
-        for (var i = str.length - 1; i >= 0; i--) {
-            newString += str[i];
-        }
-        return newString;
-    }
-
-    function getAutoMask(el: HTMLInputElement): AutoMask {
-        let value = el.value + '',
-            direction: DirectionEnum = <DirectionEnum> el.getAttribute(AttrEnum.DIRECTION) || DirectionEnum.FORWARD;
-        value = removeZeros(value.replace(/\D/g, ''), direction);
-
-        return <AutoMask> {
-            direction: direction,
-            prefix: el.getAttribute(AttrEnum.PREFIX) || '',
-            suffix: el.getAttribute(AttrEnum.SUFFIX) || '',
-            pattern: el.getAttribute(AttrEnum.PATTERN),
-            value: value
-        };
-    }
-
     const   DOC: Document = document,
             MASK_SELECTOR: string = `[type="mask"]`,
             EVENT: string = 'input';
 
     function main() {
-        let inputs: NodeListOf<Element> = query(MASK_SELECTOR);
-        each(inputs, (_i, el) => { el.addEventListener(EVENT, () => { onInputChange(el); }); });
+        let inputs: NodeListOf<Element> = query(MASK_SELECTOR), i = inputs.length;
+        while (i) {
+            let el = inputs[--i];
+            el.addEventListener(EVENT, () => { onInputChange(el); });
+        }
     }
 
     function onInputChange(el) {
@@ -108,6 +67,38 @@
         }
     }
 
+    function getAutoMask(el: HTMLInputElement): AutoMask {
+        let value = el.value + '',
+            direction: DirectionEnum = <DirectionEnum> el.getAttribute(AttrEnum.DIRECTION) || DirectionEnum.FORWARD;
+        value = removeZeros(value.replace(/\D/g, ''), direction);
+
+        return <AutoMask> {
+            direction: direction,
+            prefix: el.getAttribute(AttrEnum.PREFIX) || '',
+            suffix: el.getAttribute(AttrEnum.SUFFIX) || '',
+            pattern: el.getAttribute(AttrEnum.PATTERN),
+            value: value
+        };
+    }
+
+    function isEmpty(str: string): boolean {
+        return str.length === 0;
+    }
+
+    function isIndexOut(str: string, index: number): boolean {
+        return index < 0 || index >= str.length;
+    }
+
+    function equals(str: string, matchesArr: Array<string>): boolean {
+        return matchesArr.some(match => str === match);
+    }
+
+    function reverse(str: string): string {
+        let rStr = "", i = str.length;
+        while (i) { rStr += str[--i]; }
+        return rStr;
+    }
+
     function isZero(str: string, index: number): boolean {
         while(!isIndexOut(str, index)) {
             let char = str.charAt(index++);
@@ -118,18 +109,11 @@
     }
 
     function removeZeros(value: string, direction: DirectionEnum) {
-        if (!direction || direction === DirectionEnum.FORWARD) {
-            return value.replace(/0*$/, '');
-        }
-        return value.replace(/^0*/, '');
+        return value.replace(direction === DirectionEnum.FORWARD ? /0*$/ : /^0*/, '');
     }
 
     function query(querySelector: string): NodeListOf<Element> {
         return DOC.querySelectorAll(querySelector);
-    }
-
-    function createElement(tag: string): HTMLElement {
-        return document.createElement(tag);
     }
 
     function ready(handler: Function): void {
@@ -137,13 +121,6 @@
             handler();
         } else {
             DOC.addEventListener('DOMContentLoaded', () => { handler() });
-        }
-    }
-
-    function each(arr: ArrayLike<any>, it: (item, index) => void): void {
-        let length = arr.length;
-        for (let i = 0; i < length; i++) {
-            if (it.call(arr[i], i, arr[i]) === false) { break }
         }
     }
 
