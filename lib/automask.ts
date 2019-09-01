@@ -7,43 +7,96 @@
  * Group 6 - Suffix
  */
 
-interface AutoMask {
-    direction: string;
-    prefix: string;
-    pattern: string;
-    suffix: string;
-}
-
-interface MaskElement extends Element {
-    autoMask: AutoMask;
-}
-
 (() => {
+
+    enum DirectionEnum {
+        FORWARD = 'forward', BACKWARD = 'backward'
+    }
+
+    enum AttrEnum {
+        PATTERN = 'pattern', PREFIX = 'prefix', SUFFIX= 'suffix', DIRECTION= 'direction'
+    }
+    
+    interface AutoMask {
+        direction: DirectionEnum;
+        prefix: string;
+        suffix: string;
+        pattern: string;
+        value: string;
+    }
+
+    function isEmpty(str: string): boolean {
+        return str.length === 0;
+    }
+
+    function isIndexOut(str: string, index: number) {
+        return index < 0 || index >= str.length;
+    }
+
+    function equals(str: string, matchesArr: Array<string>) {
+        return matchesArr.some(match => str === match);
+    }
+
+    function getAutoMask(el: HTMLInputElement): AutoMask {
+        let value = el.value + '',
+            direction: DirectionEnum = <DirectionEnum> el.getAttribute(AttrEnum.DIRECTION) || DirectionEnum.FORWARD;
+        value = removeZeros(value.replace(/\D/g, ''), direction);
+
+        return <AutoMask> {
+            direction: direction,
+            prefix: el.getAttribute(AttrEnum.PREFIX) || '',
+            suffix: el.getAttribute(AttrEnum.SUFFIX) || '',
+            pattern: el.getAttribute(AttrEnum.PATTERN),
+            value: value
+        };
+    }
+
     const   DOC: Document = document,
-            MASK_PATTERN: RegExp = /^(<|>)?(\[([^\]]*)])?([^[]*)(\[([^\]]*)])?$/,
-            MASK_ATTR: string = 'mask',
-            MASK_SELECTOR: string = `[${MASK_ATTR}]`,
-            RAW_NAME_ATTR: string = 'raw-name';
+            MASK_SELECTOR: string = `[type="mask"]`,
+            EVENT: string = 'input';
 
     function main() {
         let inputs: NodeListOf<Element> = query(MASK_SELECTOR);
-        each(inputs, prepareInput);
+        each(inputs, (_i, el) => { el.addEventListener(EVENT, () => { onInputChange(el); }); });
     }
 
-    function prepareInput(el: MaskElement): void {
-        let rawMask: RegExpMatchArray = el.getAttribute(MASK_ATTR).match(MASK_PATTERN);
-        el.autoMask = {
-            direction:  rawMask[1] || '>',
-            prefix:     rawMask[3] || '',
-            pattern:    rawMask[4],
-            suffix:     rawMask[6] || ''
-        };
+    function onInputChange(el) {
+        let mask = getAutoMask(el),
+            length = mask.pattern.length,
+            value = mask.prefix,
+            selection = void 0,
+            valuePos = 0;
 
-        if (el.autoMask.pattern === void 0) {
-            console.error('Pattern not found!');
-            el.removeAttribute(MASK_ATTR);
-            el.setAttribute(MASK_ATTR + '-error');
+        if (isEmpty(mask.value)) { selection = 0; }
+
+        if (mask.direction === DirectionEnum.FORWARD) {
+            for (let i = 0; i < length; i++) {
+                let maskChar = mask.pattern.charAt(i);
+
+                if (isIndexOut(mask.value, valuePos)) {
+                    if (selection === void 0) { selection = i; }
+                    if (maskChar !== '0') { break; }
+                    value += maskChar;
+                    continue;
+                }
+
+                value += equals(maskChar, ['_', '0']) ? mask.value.charAt(valuePos++) : maskChar;
+            }
         }
+        el.value = value + mask.suffix;
+
+        if (selection === void 0) {
+            el.selectionStart = el.selectionEnd = value.length - mask.suffix.length;
+        } else {
+            el.selectionStart = el.selectionEnd = selection + mask.prefix.length;
+        }
+    }
+
+    function removeZeros(value: string, direction: DirectionEnum) {
+        if (!direction || direction === DirectionEnum.FORWARD) {
+            return value.replace(/0*$/, '');
+        }
+        return value.replace(/^0*/, '');
     }
 
     function query(querySelector: string): NodeListOf<Element> {
