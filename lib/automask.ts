@@ -32,6 +32,14 @@
             this.element.value = this.prefix + this.reverseIfNeeded(value) + this.suffix;
         }
 
+        public get selection(): number {
+            return this.element.selectionStart;
+        }
+
+        public set selection(value: number) {
+            this.element.selectionStart = this.element.selectionEnd = value;
+        }
+
         public getRawValue(): string {
             let value: string = this.removePrefixAndSuffix(this.element.value);
             value = this.removeZeros(value.replace(this.accept, ''));
@@ -93,11 +101,7 @@
             rawValue = mask.getRawValue(),
             value = '',
             newSelection,
-            oldSelection = el.selectionStart,
             valuePos = 0;
-
-        // Fix IE11 input loop bug
-        if (isEmpty(rawValue)) { return; }
 
         for (var i = 0; i < length; i++) {
             let maskChar = mask.pattern.charAt(i);
@@ -105,22 +109,27 @@
             if (isIndexOut(rawValue, valuePos)) {
                 if (newSelection === void 0) {
                     newSelection = i;
-                    console.log(oldSelection, i);
                 }
-                if (!mask.showMask && !isZero(mask.pattern, i)) { break; }
+                if (!mask.showMask && !isZero(mask.pattern, i)) {
+                    if (i === 0) { return; } // Fix IE11 input loop bug
+                    break;
+                }
                 value += maskChar;
             } else {
-                
-                value += equals(maskChar, ['_', '0']) ? rawValue.charAt(valuePos++) : maskChar;
+                if (equals(maskChar, ['_', '0'])) {
+                    value += rawValue.charAt(valuePos++);
+                } else {
+                    value += maskChar;
+                }
             }
         }
         
         mask.value = value;
 
         if (newSelection === void 0 || mask.dir === DirectionEnum.BACKWARD) {
-            el.selectionStart = el.selectionEnd = el.value.length - mask.suffix.length;
+            mask.selection = el.value.length - mask.suffix.length;
         } else {
-            el.selectionStart = el.selectionEnd = newSelection + mask.prefix.length;
+            mask.selection = newSelection + mask.prefix.length;
         }
     }
 

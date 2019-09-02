@@ -19,6 +19,12 @@
         set value(value) {
             this.element.value = this.prefix + this.reverseIfNeeded(value) + this.suffix;
         }
+        get selection() {
+            return this.element.selectionStart;
+        }
+        set selection(value) {
+            this.element.selectionStart = this.element.selectionEnd = value;
+        }
         getRawValue() {
             let value = this.removePrefixAndSuffix(this.element.value);
             value = this.removeZeros(value.replace(this.accept, ''));
@@ -71,33 +77,36 @@
         }
     }
     function onInputChange(el) {
-        let mask = AutoMask.getAutoMask(el), length = mask.pattern.length, rawValue = mask.getRawValue(), value = '', newSelection, oldSelection = el.selectionStart, valuePos = 0;
-        // Fix IE11 input loop bug
-        if (isEmpty(rawValue)) {
-            return;
-        }
+        let mask = AutoMask.getAutoMask(el), length = mask.pattern.length, rawValue = mask.getRawValue(), value = '', newSelection, valuePos = 0;
         for (var i = 0; i < length; i++) {
             let maskChar = mask.pattern.charAt(i);
             if (isIndexOut(rawValue, valuePos)) {
                 if (newSelection === void 0) {
                     newSelection = i;
-                    console.log(oldSelection, i);
                 }
                 if (!mask.showMask && !isZero(mask.pattern, i)) {
+                    if (i === 0) {
+                        return;
+                    } // Fix IE11 input loop bug
                     break;
                 }
                 value += maskChar;
             }
             else {
-                value += equals(maskChar, ['_', '0']) ? rawValue.charAt(valuePos++) : maskChar;
+                if (equals(maskChar, ['_', '0'])) {
+                    value += rawValue.charAt(valuePos++);
+                }
+                else {
+                    value += maskChar;
+                }
             }
         }
         mask.value = value;
         if (newSelection === void 0 || mask.dir === DirectionEnum.BACKWARD) {
-            el.selectionStart = el.selectionEnd = el.value.length - mask.suffix.length;
+            mask.selection = el.value.length - mask.suffix.length;
         }
         else {
-            el.selectionStart = el.selectionEnd = newSelection + mask.prefix.length;
+            mask.selection = newSelection + mask.prefix.length;
         }
     }
     function isEmpty(str) {
