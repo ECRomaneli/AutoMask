@@ -90,37 +90,42 @@
         let inputs: NodeListOf<Element> = query(MASK_SELECTOR), i = inputs.length;
         while (i) {
             let el: AutoMaskElement = <AutoMaskElement> inputs[--i];
-            onInputChange(el);
-            el.addEventListener(EVENT, () => { onInputChange(el); }, true);
+            onInputChange(el, null);
+            el.addEventListener(EVENT, (e: any) => { onInputChange(el, e.data); }, true);
         }
     }
 
-    function onInputChange(el: AutoMaskElement) {
+    function onInputChange(el: AutoMaskElement, keyPressed: string) {
         let mask = AutoMask.getAutoMask(el),
             length = mask.pattern.length,
             rawValue = mask.getRawValue(),
             value = '',
-            newSelection,
-            valuePos = 0;
+            newSelection = mask.selection,
+            valuePos = 0,
+            first = false;
+
+        while (!isPlaceholder(mask.pattern.charAt(newSelection - 1))) {
+            newSelection += keyPressed === null ? -1 : +1;
+        }
 
         for (var i = 0; i < length; i++) {
             let maskChar = mask.pattern.charAt(i);
 
             if (isIndexOut(rawValue, valuePos)) {
-                if (newSelection === void 0) {
-                    newSelection = i;
+                if (first) {
+                    first = true;
+                    if (newSelection > i) {
+                        newSelection = i;
+                    }
                 }
-                if (!mask.showMask && !isZero(mask.pattern, i)) {
+
+                if (!(mask.showMask || isZero(mask.pattern, i))) {
                     if (i === 0) { return; } // Fix IE11 input loop bug
                     break;
                 }
                 value += maskChar;
             } else {
-                if (equals(maskChar, ['_', '0'])) {
-                    value += rawValue.charAt(valuePos++);
-                } else {
-                    value += maskChar;
-                }
+                value += isPlaceholder(maskChar) ? rawValue.charAt(valuePos++) : maskChar;
             }
         }
         
@@ -133,16 +138,16 @@
         }
     }
 
-    function isEmpty(str: string): boolean {
-        return str.length === 0;
-    }
-
     function isIndexOut(str: string, index: number): boolean {
         return index < 0 || index >= str.length;
     }
 
     function equals(str: string, matchesArr: Array<string>): boolean {
         return matchesArr.some(match => str === match);
+    }
+
+    function isPlaceholder(maskChar: string): boolean {
+        return equals(maskChar, ['_', '0', '']); // Placeholder, Zero Pad, EOF
     }
 
     function isZero(str: string, index: number): boolean {

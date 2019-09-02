@@ -17,6 +17,9 @@
         function AutoMask() {
         }
         Object.defineProperty(AutoMask.prototype, "value", {
+            get: function () {
+                return this.removePrefixAndSuffix(this.element.value);
+            },
             set: function (value) {
                 this.element.value = this.prefix + this.reverseIfNeeded(value) + this.suffix;
             },
@@ -81,22 +84,28 @@
         var inputs = query(MASK_SELECTOR), i = inputs.length;
         var _loop_1 = function () {
             var el = inputs[--i];
-            onInputChange(el);
-            el.addEventListener(EVENT, function () { onInputChange(el); }, true);
+            onInputChange(el, null);
+            el.addEventListener(EVENT, function (e) { onInputChange(el, e.data); }, true);
         };
         while (i) {
             _loop_1();
         }
     }
-    function onInputChange(el) {
-        var mask = AutoMask.getAutoMask(el), length = mask.pattern.length, rawValue = mask.getRawValue(), value = '', newSelection, valuePos = 0;
+    function onInputChange(el, keyPressed) {
+        var mask = AutoMask.getAutoMask(el), length = mask.pattern.length, rawValue = mask.getRawValue(), value = '', newSelection = mask.selection, valuePos = 0, first = false;
+        while (!isPlaceholder(mask.pattern.charAt(newSelection - 1))) {
+            newSelection += keyPressed === null ? -1 : +1;
+        }
         for (var i = 0; i < length; i++) {
             var maskChar = mask.pattern.charAt(i);
             if (isIndexOut(rawValue, valuePos)) {
-                if (newSelection === void 0) {
-                    newSelection = i;
+                if (first) {
+                    first = true;
+                    if (newSelection > i) {
+                        newSelection = i;
+                    }
                 }
-                if (!mask.showMask && !isZero(mask.pattern, i)) {
+                if (!(mask.showMask || isZero(mask.pattern, i))) {
                     if (i === 0) {
                         return;
                     } // Fix IE11 input loop bug
@@ -105,12 +114,7 @@
                 value += maskChar;
             }
             else {
-                if (equals(maskChar, ['_', '0'])) {
-                    value += rawValue.charAt(valuePos++);
-                }
-                else {
-                    value += maskChar;
-                }
+                value += isPlaceholder(maskChar) ? rawValue.charAt(valuePos++) : maskChar;
             }
         }
         mask.value = value;
@@ -121,14 +125,14 @@
             mask.selection = newSelection + mask.prefix.length;
         }
     }
-    function isEmpty(str) {
-        return str.length === 0;
-    }
     function isIndexOut(str, index) {
         return index < 0 || index >= str.length;
     }
     function equals(str, matchesArr) {
         return matchesArr.some(function (match) { return str === match; });
+    }
+    function isPlaceholder(maskChar) {
+        return equals(maskChar, ['_', '0', '']); // Placeholder, Zero Pad, EOF
     }
     function isZero(str, index) {
         while (!isIndexOut(str, index)) {
