@@ -31,8 +31,9 @@
             newSelection--;
         }
         else {
+            var sum = mask.keyPressed !== 'backspace' ? +1 : -1;
             while (!isPlaceholder(mask.pattern.charAt(newSelection - 1))) {
-                newSelection += mask.keyPressed !== 'backspace' ? +1 : -1;
+                newSelection += sum;
             }
         }
         for (var i = 0; i < length; i++) {
@@ -63,7 +64,7 @@
         }
     }
     function isIndexOut(str, index) {
-        return index < 0 || index >= str.length;
+        return index >= str.length || index < 0;
     }
     function isPlaceholder(maskChar) {
         return maskChar === '_' ? true : // Placeholder

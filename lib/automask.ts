@@ -40,8 +40,9 @@
         if (!mask.isValidKey()) {
             newSelection--;
         } else {
+            let sum = mask.keyPressed !== 'backspace' ? +1 : -1;
             while (!isPlaceholder(mask.pattern.charAt(newSelection - 1))) {
-                newSelection += mask.keyPressed !== 'backspace' ? +1 : -1;
+                newSelection += sum;
             }
         }
 
@@ -72,7 +73,7 @@
     }
 
     function isIndexOut(str: string, index: number): boolean {
-        return index < 0 || index >= str.length;
+        return index >= str.length || index < 0;
     }
 
     function isPlaceholder(maskChar: string): boolean {
@@ -109,7 +110,6 @@
         private lastRawValue: string;
         private currentRawValue: string;
         private zeroPadEnabled: boolean;
-        private constructor () {}
 
         public set value(value: string) {
             this.element.value = this.prefix + this.reverseIfNeeded(value) + this.suffix;
