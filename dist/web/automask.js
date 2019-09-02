@@ -26,22 +26,10 @@
         }
     }
     function onInputChange(el) {
-        var mask = AutoMask.getAutoMask(el), length = mask.pattern.length, rawValue = mask.getRawValue(), newSelection = mask.selection, value = '', valuePos = 0;
-        if (!mask.isValidKey()) {
-            newSelection--;
-        }
-        else {
-            var sum = mask.keyPressed !== 'backspace' ? +1 : -1;
-            while (!isPlaceholder(mask.pattern.charAt(newSelection - 1))) {
-                newSelection += sum;
-            }
-        }
+        var mask = AutoMask.getAutoMask(el), length = mask.pattern.length, rawValue = mask.getRawValue(), value = '', valuePos = 0;
         for (var i = 0; i < length; i++) {
             var maskChar = mask.pattern.charAt(i);
             if (isIndexOut(rawValue, valuePos)) {
-                if (newSelection > i) {
-                    newSelection = i;
-                } // Fix position after last input
                 if (!(mask.showMask || isZero(mask.pattern, i))) {
                     if (i === 0) {
                         return;
@@ -56,11 +44,7 @@
         }
         mask.value = value;
         if (mask.dir === DirectionEnum.BACKWARD) {
-            console.log(newSelection, el.value.length - mask.suffix.length);
             mask.selection = el.value.length - mask.suffix.length;
-        }
-        else {
-            mask.selection = newSelection + mask.prefix.length;
         }
     }
     function isIndexOut(str, index) {
@@ -92,7 +76,9 @@
         }
         Object.defineProperty(AutoMask.prototype, "value", {
             set: function (value) {
+                var newSelection = this.calcNewSelection(); // Execute before change value
                 this.element.value = this.prefix + this.reverseIfNeeded(value) + this.suffix;
+                this.selection = newSelection;
             },
             enumerable: true,
             configurable: true
@@ -138,6 +124,34 @@
                 return value;
             }
             return value.replace(this.dir === DirectionEnum.FORWARD ? /0*$/ : /^0*/, '');
+        };
+        AutoMask.prototype.calcNewSelection = function () {
+            if (this.dir === DirectionEnum.BACKWARD) {
+            }
+            var newSelection = this.selection;
+            if (!this.isValidKey()) {
+                // If not a valid key, return position
+                newSelection--;
+            }
+            else {
+                // Search next valid position
+                var sum = this.keyPressed !== 'backspace' ? +1 : -1;
+                while (!isPlaceholder(this.pattern.charAt(newSelection - 1))) {
+                    newSelection += sum;
+                }
+                // Fix position after last input
+                var max = void 0;
+                try {
+                    max = this.pattern.match(new RegExp("([^_0]*[_0]){" + this.getRawValue().length + "}"))[0].length;
+                }
+                catch (_ex) {
+                    max = this.pattern.length;
+                }
+                if (newSelection > max) {
+                    newSelection = max;
+                }
+            }
+            return newSelection;
         };
         AutoMask.getAutoMask = function (el) {
             if (!el.autoMask) {
