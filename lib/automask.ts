@@ -31,8 +31,8 @@
 
     function onInputChange(el: AutoMaskElement) {
         let mask = AutoMask.getAutoMask(el),
-            length = mask.pattern.length,
             rawValue = mask.getRawValue(),
+            length = mask.pattern.length,
             value = '',
             valuePos = 0;
 
@@ -49,12 +49,8 @@
                 value += isPlaceholder(maskChar) ? rawValue.charAt(valuePos++) : maskChar;
             }
         }
-        
-        mask.value = value;
 
-        if (mask.dir === DirectionEnum.BACKWARD) {
-            mask.selection = el.value.length - mask.suffix.length;
-        }
+        mask.value = value;
     }
 
     function isIndexOut(str: string, index: number): boolean {
@@ -98,9 +94,9 @@
         private rawTotalLength: number;
 
         public set value(value: string) {
-            let newSelection: number = this.calcNewSelection(); // Execute before change value
+            let oldSelection = this.selection;
             this.element.value = this.prefix + this.reverseIfNeeded(value) + this.suffix;
-            this.selection = newSelection;
+            this.selection = this.calcNewSelection(oldSelection);
         }
 
         public get selection(): number {
@@ -141,13 +137,15 @@
             return value.replace(this.dir === DirectionEnum.FORWARD ? /0*$/ : /^0*/, '');
         }
 
-        private calcNewSelection(): number {
+        private calcNewSelection(oldSelection: number): number {
             if (this.dir === DirectionEnum.BACKWARD) {
-                
+                return this.element.value.length - this.suffix.length;
             }
 
-            let newSelection = this.selection - this.prefix.length;
-            if (newSelection < 1) { newSelection = 1; } // Fix selections between the prefix
+            let newSelection = oldSelection - this.prefix.length;
+
+            // Fix selections between the prefix
+            if (newSelection < 1) { newSelection = this.keyPressed && this.keyPressed !== 'backspace' ? 1 : 0; } 
 
             // If not a valid key, then return to the last valid placeholder
             let sum;

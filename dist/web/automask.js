@@ -26,7 +26,7 @@
         }
     }
     function onInputChange(el) {
-        var mask = AutoMask.getAutoMask(el), length = mask.pattern.length, rawValue = mask.getRawValue(), value = '', valuePos = 0;
+        var mask = AutoMask.getAutoMask(el), rawValue = mask.getRawValue(), length = mask.pattern.length, value = '', valuePos = 0;
         for (var i = 0; i < length; i++) {
             var maskChar = mask.pattern.charAt(i);
             if (isIndexOut(rawValue, valuePos)) {
@@ -43,12 +43,18 @@
             }
         }
         mask.value = value;
-        if (mask.dir === DirectionEnum.BACKWARD) {
-            mask.selection = el.value.length - mask.suffix.length;
-        }
     }
     function isIndexOut(str, index) {
         return index >= str.length || index < 0;
+    }
+    function some(str, it) {
+        var length = str.length;
+        for (var i = 0; i < length; i++) {
+            if (it(str.charAt(i), i) === true) {
+                return true;
+            }
+        }
+        return false;
     }
     function isPlaceholder(maskChar) {
         return maskChar === '_' ? true : // Placeholder
@@ -76,9 +82,9 @@
         }
         Object.defineProperty(AutoMask.prototype, "value", {
             set: function (value) {
-                var newSelection = this.calcNewSelection(); // Execute before change value
+                var oldSelection = this.selection;
                 this.element.value = this.prefix + this.reverseIfNeeded(value) + this.suffix;
-                this.selection = newSelection;
+                this.selection = this.calcNewSelection(oldSelection);
             },
             enumerable: true,
             configurable: true
@@ -126,13 +132,15 @@
             }
             return value.replace(this.dir === DirectionEnum.FORWARD ? /0*$/ : /^0*/, '');
         };
-        AutoMask.prototype.calcNewSelection = function () {
+        AutoMask.prototype.calcNewSelection = function (oldSelection) {
             if (this.dir === DirectionEnum.BACKWARD) {
+                return this.element.value.length - this.suffix.length;
             }
-            var newSelection = this.selection - this.prefix.length;
+            var newSelection = oldSelection - this.prefix.length;
+            // Fix selections between the prefix
             if (newSelection < 1) {
-                newSelection = 1;
-            } // Fix selections between the prefix
+                newSelection = this.keyPressed && this.keyPressed !== 'backspace' ? 1 : 0;
+            }
             // If not a valid key, then return to the last valid placeholder
             var sum;
             if (!this.isValidKey()) {
