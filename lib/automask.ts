@@ -95,6 +95,7 @@
         private lastRawValue: string;
         private currentRawValue: string;
         private zeroPadEnabled: boolean;
+        private rawTotalLength: number;
 
         public set value(value: string) {
             let newSelection: number = this.calcNewSelection(); // Execute before change value
@@ -113,6 +114,7 @@
         public getRawValue(): string {
             let value: string = this.removePrefixAndSuffix(this.element.value);
             value = this.removeZeros(value.replace(this.deny, ''));
+            value = value.substr(0, this.rawTotalLength);
             return this.reverseIfNeeded(value);
         }
 
@@ -146,29 +148,34 @@
 
             let newSelection = this.selection,
                 prefixAndPattern = this.prefix + this.pattern;
-            console.log('keyPressed: `' + this.keyPressed + '`');
-            // If not a valid key, return position
-            if (!this.isValidKey()) { return newSelection - 1; }
+            
+            // If not a valid key, then return to the last valid placeholder
+            let sum;
+            if (!this.isValidKey()) {
+                newSelection--;
+                sum = -1;
+            } else {
+                sum = this.keyPressed !== 'backspace' ? +1 : -1;
+            }
 
-            // Search next valid position
-            let sum = this.keyPressed !== 'backspace' ? +1 : -1;
-            while (!isPlaceholder(prefixAndPattern.charAt(newSelection - 1))) {
-                console.log('Not is Placeholder: `' + prefixAndPattern.charAt(newSelection - 1) + '`');
-                newSelection += sum;
-            }
-            console.log('    Is Placeholder: `' + prefixAndPattern.charAt(newSelection - 1) + '`');
+            while (!isPlaceholder(prefixAndPattern.charAt(newSelection - 1))) { newSelection += sum; }
+            
             // Fix positions after last input
-            let max;
-            try {
-                max = prefixAndPattern.match(new RegExp(`([^_0]*[_0]){${this.getRawValue().length}}`))[0].length;
-            } catch (_ex) {
-                max = prefixAndPattern.length;
-            }
-            return newSelection > max ? max : newSelection;
+            return this.getMaxSelection(newSelection);
         }
 
-        private getSelectionPosition() {
-
+        private getMaxSelection(stopValue: number) {
+            let prefixAndPattern = this.prefix + this.pattern,
+                length = prefixAndPattern.length,
+                rawLength = this.currentRawValue.length;
+            if (stopValue === 0) { return 0; }
+            if (rawLength === 0) { return this.prefix.length; }
+            for (let i = 1; i < length; i++) {
+                if (isPlaceholder(prefixAndPattern.charAt(i - 1))) {
+                    if (--rawLength < 1 || i === stopValue) { return i; }
+                }
+            }
+            return length;
         }
 
         public static getAutoMask(el: AutoMaskElement): AutoMask {
@@ -198,8 +205,14 @@
             
             mask.element = el;
             mask.zeroPadEnabled = mask.pattern.indexOf('0') !== -1;
-            mask.currentRawValue = mask.getRawValue();
+            
+            let length = mask.pattern.length;
+            mask.rawTotalLength = 0;
+            for (let i = 0; i < length; i++) {
+                if (isPlaceholder(mask.pattern.charAt(i))) { mask.rawTotalLength++; }
+            }
 
+            mask.currentRawValue = mask.getRawValue();
             el.maxLength = mask.pattern.length + mask.prefix.length + mask.suffix.length + 1;
             return mask;
         }
