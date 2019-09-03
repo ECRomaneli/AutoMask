@@ -146,9 +146,9 @@
                 
             }
 
-            let newSelection = this.selection,
-                prefixAndPattern = this.prefix + this.pattern;
-            
+            let newSelection = this.selection - this.prefix.length;
+            if (newSelection < 1) { newSelection = 1; } // Fix selections between the prefix
+
             // If not a valid key, then return to the last valid placeholder
             let sum;
             if (!this.isValidKey()) {
@@ -158,20 +158,18 @@
                 sum = this.keyPressed !== 'backspace' ? +1 : -1;
             }
 
-            while (!isPlaceholder(prefixAndPattern.charAt(newSelection - 1))) { newSelection += sum; }
+            while (!isPlaceholder(this.pattern.charAt(newSelection - 1))) { newSelection += sum; }
             
             // Fix positions after last input
-            return this.getMaxSelection(newSelection);
+            return this.getMaxSelection(newSelection) + this.prefix.length;
         }
 
         private getMaxSelection(stopValue: number) {
-            let prefixAndPattern = this.prefix + this.pattern,
-                length = prefixAndPattern.length,
+            let length = this.pattern.length,
                 rawLength = this.currentRawValue.length;
-            if (stopValue === 0) { return 0; }
-            if (rawLength === 0) { return this.prefix.length; }
+            if (!stopValue || !rawLength) { return 0; }
             for (let i = 1; i < length; i++) {
-                if (isPlaceholder(prefixAndPattern.charAt(i - 1))) {
+                if (isPlaceholder(this.pattern.charAt(i - 1))) {
                     if (--rawLength < 1 || i === stopValue) { return i; }
                 }
             }

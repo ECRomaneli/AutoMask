@@ -129,7 +129,10 @@
         AutoMask.prototype.calcNewSelection = function () {
             if (this.dir === DirectionEnum.BACKWARD) {
             }
-            var newSelection = this.selection, prefixAndPattern = this.prefix + this.pattern;
+            var newSelection = this.selection - this.prefix.length;
+            if (newSelection < 1) {
+                newSelection = 1;
+            } // Fix selections between the prefix
             // If not a valid key, then return to the last valid placeholder
             var sum;
             if (!this.isValidKey()) {
@@ -139,22 +142,19 @@
             else {
                 sum = this.keyPressed !== 'backspace' ? +1 : -1;
             }
-            while (!isPlaceholder(prefixAndPattern.charAt(newSelection - 1))) {
+            while (!isPlaceholder(this.pattern.charAt(newSelection - 1))) {
                 newSelection += sum;
             }
             // Fix positions after last input
-            return this.getMaxSelection(newSelection);
+            return this.getMaxSelection(newSelection) + this.prefix.length;
         };
         AutoMask.prototype.getMaxSelection = function (stopValue) {
-            var prefixAndPattern = this.prefix + this.pattern, length = prefixAndPattern.length, rawLength = this.currentRawValue.length;
-            if (stopValue === 0) {
+            var length = this.pattern.length, rawLength = this.currentRawValue.length;
+            if (!stopValue || !rawLength) {
                 return 0;
             }
-            if (rawLength === 0) {
-                return this.prefix.length;
-            }
             for (var i = 1; i < length; i++) {
-                if (isPlaceholder(prefixAndPattern.charAt(i - 1))) {
+                if (isPlaceholder(this.pattern.charAt(i - 1))) {
                     if (--rawLength < 1 || i === stopValue) {
                         return i;
                     }
