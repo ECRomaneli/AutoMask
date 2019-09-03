@@ -116,30 +116,27 @@
         calcNewSelection() {
             if (this.dir === DirectionEnum.BACKWARD) {
             }
-            let newSelection = this.selection;
+            let newSelection = this.selection, prefixAndPattern = this.prefix + this.pattern;
+            // If not a valid key, return position
             if (!this.isValidKey()) {
-                // If not a valid key, return position
-                newSelection--;
+                return newSelection - 1;
             }
-            else {
-                // Search next valid position
-                let sum = this.keyPressed !== 'backspace' ? +1 : -1;
-                while (!isPlaceholder(this.pattern.charAt(newSelection - 1))) {
-                    newSelection += sum;
-                }
-                // Fix position after last input
-                let max;
-                try {
-                    max = this.pattern.match(new RegExp(`([^_0]*[_0]){${this.getRawValue().length}}`))[0].length;
-                }
-                catch (_ex) {
-                    max = this.pattern.length;
-                }
-                if (newSelection > max) {
-                    newSelection = max;
-                }
+            // Search next valid position
+            let sum = this.keyPressed !== 'backspace' ? +1 : -1;
+            while (!isPlaceholder(prefixAndPattern.charAt(newSelection - 1))) {
+                newSelection += sum;
             }
-            return newSelection;
+            // Fix positions after last input
+            let max;
+            try {
+                max = prefixAndPattern.match(new RegExp(`([^_0]*[_0]){${this.getRawValue().length}}`))[0].length;
+            }
+            catch (_ex) {
+                max = prefixAndPattern.length;
+            }
+            return newSelection > max ? max : newSelection;
+        }
+        getSelectionPosition() {
         }
         static getAutoMask(el) {
             if (!el.autoMask) {
@@ -148,7 +145,7 @@
             let mask = el.autoMask;
             mask.lastRawValue = mask.currentRawValue;
             mask.currentRawValue = mask.getRawValue();
-            if (mask.lastRawValue.length > mask.currentRawValue.length) {
+            if (mask.currentRawValue.length <= mask.lastRawValue.length) {
                 mask.keyPressed = 'backspace';
             }
             else {

@@ -128,30 +128,30 @@
         AutoMask.prototype.calcNewSelection = function () {
             if (this.dir === DirectionEnum.BACKWARD) {
             }
-            var newSelection = this.selection;
+            var newSelection = this.selection, prefixAndPattern = this.prefix + this.pattern;
+            console.log('keyPressed: `' + this.keyPressed + '`');
+            // If not a valid key, return position
             if (!this.isValidKey()) {
-                // If not a valid key, return position
-                newSelection--;
+                return newSelection - 1;
             }
-            else {
-                // Search next valid position
-                var sum = this.keyPressed !== 'backspace' ? +1 : -1;
-                while (!isPlaceholder(this.pattern.charAt(newSelection - 1))) {
-                    newSelection += sum;
-                }
-                // Fix position after last input
-                var max = void 0;
-                try {
-                    max = this.pattern.match(new RegExp("([^_0]*[_0]){" + this.getRawValue().length + "}"))[0].length;
-                }
-                catch (_ex) {
-                    max = this.pattern.length;
-                }
-                if (newSelection > max) {
-                    newSelection = max;
-                }
+            // Search next valid position
+            var sum = this.keyPressed !== 'backspace' ? +1 : -1;
+            while (!isPlaceholder(prefixAndPattern.charAt(newSelection - 1))) {
+                console.log('Not is Placeholder: `' + prefixAndPattern.charAt(newSelection - 1) + '`');
+                newSelection += sum;
             }
-            return newSelection;
+            console.log('    Is Placeholder: `' + prefixAndPattern.charAt(newSelection - 1) + '`');
+            // Fix positions after last input
+            var max;
+            try {
+                max = prefixAndPattern.match(new RegExp("([^_0]*[_0]){" + this.getRawValue().length + "}"))[0].length;
+            }
+            catch (_ex) {
+                max = prefixAndPattern.length;
+            }
+            return newSelection > max ? max : newSelection;
+        };
+        AutoMask.prototype.getSelectionPosition = function () {
         };
         AutoMask.getAutoMask = function (el) {
             if (!el.autoMask) {
@@ -160,7 +160,7 @@
             var mask = el.autoMask;
             mask.lastRawValue = mask.currentRawValue;
             mask.currentRawValue = mask.getRawValue();
-            if (mask.lastRawValue.length > mask.currentRawValue.length) {
+            if (mask.currentRawValue.length < mask.lastRawValue.length) {
                 mask.keyPressed = 'backspace';
             }
             else {
