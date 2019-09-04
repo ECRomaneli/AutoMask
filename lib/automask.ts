@@ -57,6 +57,14 @@
         return index >= str.length || index < 0;
     }
 
+    function some(str: string, it: (char: string, index: number) => true | false | void) {
+        let length = str.length;
+        for (let i = 0; i < length; i++) {
+            if (it(str.charAt(i), i) === true) { return true; }
+        }
+        return false;
+    }
+
     function isPlaceholder(maskChar: string): boolean {
         return  maskChar === '_' ? true :           // Placeholder
                 maskChar === '0' ? true :           // ZeroPad
@@ -121,8 +129,38 @@
         }
 
         private removePrefixAndSuffix(value: string): string {
-            return value.replace(this.prefix, '').replace(this.suffix, ''); // Fix input before prefix and after suffix
-            // return value.substring(this.prefix.length, value.length - this.suffix.length);
+            value = this.removeStrOccurences(value, this.prefix, 0);
+            value = this.removeStrOccurences(value, this.suffix, value.length - this.suffix.length);
+            console.log(value);
+            return value;
+        }
+
+        public removeStrOccurences(str: string, rmStr: string, startIndex: number) {
+            if (str.indexOf(rmStr) === startIndex) {
+                if (startIndex === 0) { return str.substr(rmStr.length); }
+                return str.substring(0, startIndex);
+            }
+
+            let length = rmStr.length, lastStrIndex = startIndex, joinArr = [];
+            if (startIndex > 0) { joinArr.push(str.substring(0, startIndex)); }
+
+            for (let i = 0; i < length; i++) {
+                let rmChar = rmStr.charAt(i), strIndex = startIndex + i;
+
+                if (str.charAt(strIndex) === rmChar) {
+                    lastStrIndex = strIndex + 1;
+
+                } else if (str.charAt(strIndex + 1) === rmChar) {
+                    joinArr.push(str.substring(lastStrIndex, strIndex + 1));
+                    lastStrIndex = strIndex + 2;
+
+                } else {
+                    startIndex--;
+                }
+            }
+
+            joinArr.push(str.substr(lastStrIndex));
+            return joinArr.join('');
         }
 
         private reverseIfNeeded(str: string): string {
@@ -198,7 +236,7 @@
             mask.pattern = mask.reverseIfNeeded(el.getAttribute(AttrEnum.PATTERN));
             mask.showMask = (el.getAttribute(AttrEnum.SHOW_MASK) + '').toLowerCase() === 'true' || false;
             mask.deny = new RegExp(`[^${el.getAttribute(AttrEnum.ACCEPT) || '\\d'}]`, 'g');
-            
+            window['remover'] = mask.removeStrOccurences;
             mask.element = el;
             mask.zeroPadEnabled = mask.pattern.indexOf('0') !== -1;
             

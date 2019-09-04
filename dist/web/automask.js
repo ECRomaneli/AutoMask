@@ -113,8 +113,37 @@
             return !this.deny.test(this.keyPressed);
         };
         AutoMask.prototype.removePrefixAndSuffix = function (value) {
-            return value.replace(this.prefix, '').replace(this.suffix, ''); // Fix input before prefix and after suffix
-            // return value.substring(this.prefix.length, value.length - this.suffix.length);
+            value = this.removeStrOccurences(value, this.prefix, 0);
+            value = this.removeStrOccurences(value, this.suffix, value.length - this.suffix.length);
+            console.log(value);
+            return value;
+        };
+        AutoMask.prototype.removeStrOccurences = function (str, rmStr, startIndex) {
+            if (str.indexOf(rmStr) === startIndex) {
+                if (startIndex === 0) {
+                    return str.substr(rmStr.length);
+                }
+                return str.substring(0, startIndex);
+            }
+            var length = rmStr.length, lastStrIndex = startIndex, joinArr = [];
+            if (startIndex > 0) {
+                joinArr.push(str.substring(0, startIndex));
+            }
+            for (var i = 0; i < length; i++) {
+                var rmChar = rmStr.charAt(i), strIndex = startIndex + i;
+                if (str.charAt(strIndex) === rmChar) {
+                    lastStrIndex = strIndex + 1;
+                }
+                else if (str.charAt(strIndex + 1) === rmChar) {
+                    joinArr.push(str.substring(lastStrIndex, strIndex + 1));
+                    lastStrIndex = strIndex + 2;
+                }
+                else {
+                    startIndex--;
+                }
+            }
+            joinArr.push(str.substr(lastStrIndex));
+            return joinArr.join('');
         };
         AutoMask.prototype.reverseIfNeeded = function (str) {
             if (this.dir !== DirectionEnum.BACKWARD) {
@@ -193,6 +222,7 @@
             mask.pattern = mask.reverseIfNeeded(el.getAttribute(AttrEnum.PATTERN));
             mask.showMask = (el.getAttribute(AttrEnum.SHOW_MASK) + '').toLowerCase() === 'true' || false;
             mask.deny = new RegExp("[^" + (el.getAttribute(AttrEnum.ACCEPT) || '\\d') + "]", 'g');
+            window['remover'] = mask.removeStrOccurences;
             mask.element = el;
             mask.zeroPadEnabled = mask.pattern.indexOf('0') !== -1;
             var length = mask.pattern.length;
