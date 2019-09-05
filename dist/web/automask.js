@@ -13,41 +13,17 @@
         AttrEnum["ACCEPT"] = "accept";
         AttrEnum["SHOW_MASK"] = "show-mask";
     })(AttrEnum || (AttrEnum = {}));
-    var EventEnum;
-    (function (EventEnum) {
-        EventEnum["CHANGE"] = "input";
-        EventEnum["KEYDOWN"] = "keydown";
-    })(EventEnum || (EventEnum = {}));
     var DOC = document, MASK_SELECTOR = "[mask]";
     function main() {
         var inputs = DOC.querySelectorAll(MASK_SELECTOR), i = inputs.length;
         var _loop_1 = function () {
             var el = inputs[--i];
             onInputChange(el);
-            el.addEventListener(EventEnum.KEYDOWN, function () { console.log('keydown', el.value, el.selectionStart); onKeyDown(el); }, true);
-            el.addEventListener(EventEnum.CHANGE, function () { console.log('change', el.value, el.selectionStart); onInputChange(el); }, true);
+            el.addEventListener('input', function () { onInputChange(el); }, true);
         };
         while (i) {
             _loop_1();
         }
-    }
-    function onKeyDown(el) {
-        var mask = AutoMask.getAutoMask(el), selectionStart = el.selectionStart, selectionEnd = el.selectionEnd, prefixLimit = mask.prefix.length, suffixLimit = mask.pattern.length + mask.prefix.length;
-        if (selectionStart < prefixLimit) {
-            selectionStart = prefixLimit;
-        }
-        else if (selectionStart > suffixLimit) {
-            selectionStart = suffixLimit;
-        }
-        if (selectionEnd < prefixLimit) {
-            selectionEnd = prefixLimit;
-        }
-        else if (selectionEnd > suffixLimit) {
-            selectionEnd = suffixLimit;
-        }
-        el.selectionStart = selectionStart;
-        el.selectionEnd = selectionEnd;
-        console.log('onKeyDown finished!');
     }
     function onInputChange(el) {
         var mask = AutoMask.getAutoMask(el), rawValue = mask.getRawValue(), length = mask.pattern.length, value = '', valuePos = 0;
@@ -55,9 +31,6 @@
             var maskChar = mask.pattern.charAt(i);
             if (isIndexOut(rawValue, valuePos)) {
                 if (!(mask.showMask || isZero(mask.pattern, i))) {
-                    if (i === 0) {
-                        return;
-                    } // Fix IE11 input loop bug
                     break;
                 }
                 value += maskChar;
@@ -98,8 +71,10 @@
         Object.defineProperty(AutoMask.prototype, "value", {
             set: function (value) {
                 var oldSelection = this.selection;
-                this.element.value = this.prefix + this.reverseIfNeeded(value) + this.suffix;
-                this.selection = this.calcNewSelection(oldSelection);
+                if (this.lastValue !== this.currentValue) {
+                    this.element.value = this.prefix + this.reverseIfNeeded(value) + this.suffix;
+                    this.selection = this.calcNewSelection(oldSelection);
+                }
             },
             enumerable: true,
             configurable: true
@@ -128,7 +103,38 @@
             return !this.deny.test(this.keyPressed);
         };
         AutoMask.prototype.removePrefixAndSuffix = function (value) {
-            return value.replace(new RegExp("^" + this.prefix + "|" + this.suffix + "$", 'g'), '');
+            value = this.removeStrOccurences(value, this.prefix, 0);
+            value = this.removeStrOccurences(value, this.suffix, value.length - this.suffix.length);
+            console.log(value);
+            return value;
+        };
+        AutoMask.prototype.removeStrOccurences = function (str, rmStr, startIndex) {
+            if (str.indexOf(rmStr) === startIndex) {
+                if (startIndex === 0) {
+                    return str.substr(rmStr.length);
+                }
+                return str.substring(0, startIndex);
+            }
+            var length = rmStr.length, lastStrIndex = startIndex, joinArr = [];
+            if (startIndex > 0) {
+                joinArr.push(str.substring(0, startIndex));
+            }
+            for (var i = 0; i < length; i++) {
+                var rmChar = rmStr.charAt(i), strIndex = startIndex + i;
+                if (str.charAt(strIndex) === rmChar) {
+                    lastStrIndex = strIndex + 1;
+                }
+                else if (str.charAt(strIndex + 1) === rmChar) {
+                    joinArr.push(str.substring(lastStrIndex, strIndex + 1));
+                    lastStrIndex = strIndex + 2;
+                    startIndex++;
+                }
+                else {
+                    startIndex--;
+                }
+            }
+            joinArr.push(str.substr(lastStrIndex));
+            return joinArr.join('');
         };
         AutoMask.prototype.reverseIfNeeded = function (str) {
             if (this.dir !== DirectionEnum.BACKWARD) {
@@ -148,7 +154,7 @@
         };
         AutoMask.prototype.calcNewSelection = function (oldSelection) {
             if (this.dir === DirectionEnum.BACKWARD) {
-                return this.element.value.length - this.suffix.length;
+                return this.currentValue.length - this.suffix.length;
             }
             var newSelection = oldSelection - this.prefix.length;
             // Fix selections between the prefix
@@ -171,7 +177,7 @@
             return this.getMaxSelection(newSelection) + this.prefix.length;
         };
         AutoMask.prototype.getMaxSelection = function (stopValue) {
-            var length = this.pattern.length, rawLength = this.currentRawValue.length;
+            var length = this.pattern.length, rawLength = this.getRawValue().length;
             if (!stopValue || !rawLength) {
                 return 0;
             }
@@ -189,13 +195,13 @@
                 return el.autoMask = AutoMask.byElement(el);
             }
             var mask = el.autoMask;
-            mask.lastRawValue = mask.currentRawValue;
-            mask.currentRawValue = mask.getRawValue();
-            if (mask.currentRawValue.length < mask.lastRawValue.length) {
+            mask.lastValue = mask.currentValue;
+            mask.currentValue = mask.element.value;
+            if (mask.currentValue.length < mask.lastValue.length) {
                 mask.keyPressed = 'backspace';
             }
             else {
-                mask.keyPressed = el.value.charAt(mask.selection - 1);
+                mask.keyPressed = mask.currentValue.charAt(mask.selection - 1);
             }
             return mask;
         };
@@ -216,7 +222,7 @@
                     mask.rawTotalLength++;
                 }
             }
-            mask.currentRawValue = mask.getRawValue();
+            mask.currentValue = el.value;
             el.maxLength = mask.pattern.length + mask.prefix.length + mask.suffix.length + 1;
             return mask;
         };

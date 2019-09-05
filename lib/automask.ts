@@ -12,11 +12,6 @@
         SHOW_MASK = 'show-mask'
     }
 
-    enum EventEnum {
-        CHANGE = 'input',
-        KEYDOWN = 'keydown'
-    }
-
     interface AutoMaskElement extends HTMLInputElement {
         autoMask?: AutoMask
     }
@@ -29,33 +24,8 @@
         while (i) {
             let el: AutoMaskElement = <AutoMaskElement> inputs[--i];
             onInputChange(el);
-            el.addEventListener(EventEnum.KEYDOWN, () => { console.log('keydown', el.value, el.selectionStart); onKeyDown(el); }, true);
-            el.addEventListener(EventEnum.CHANGE, () => { console.log('change', el.value, el.selectionStart); onInputChange(el); }, true);
+            el.addEventListener('input', () => { onInputChange(el); }, true);
         }
-    }
-
-    function onKeyDown(el: AutoMaskElement): void {
-        let mask = AutoMask.getAutoMask(el),
-            selectionStart = el.selectionStart,
-            selectionEnd = el.selectionEnd,
-            prefixLimit = mask.prefix.length,
-            suffixLimit = mask.pattern.length + mask.prefix.length;
-
-        if (selectionStart < prefixLimit) {
-            selectionStart = prefixLimit;
-        } else if (selectionStart > suffixLimit) {
-            selectionStart = suffixLimit;
-        }
-
-        if (selectionEnd < prefixLimit) {
-            selectionEnd = prefixLimit;
-        } else if (selectionEnd > suffixLimit) {
-            selectionEnd = suffixLimit;
-        }
-
-        el.selectionStart = selectionStart;
-        el.selectionEnd = selectionEnd;
-        console.log('onKeyDown finished!');
     }
 
     function onInputChange(el: AutoMaskElement): void {
@@ -70,7 +40,6 @@
 
             if (isIndexOut(rawValue, valuePos)) {
                 if (!(mask.showMask || isZero(mask.pattern, i))) {
-                    if (i === 0) { return; } // Fix IE11 input loop bug
                     break;
                 }
                 value += maskChar;
@@ -117,15 +86,17 @@
         public keyPressed: string;
         
         private element: AutoMaskElement;
-        private lastRawValue: string;
-        private currentRawValue: string;
+        private lastValue: string;
+        private currentValue: string;
         private zeroPadEnabled: boolean;
         private rawTotalLength: number;
 
         public set value(value: string) {
             let oldSelection = this.selection;
-            this.element.value = this.prefix + this.reverseIfNeeded(value) + this.suffix;
-            this.selection = this.calcNewSelection(oldSelection);
+            if (this.lastValue !== this.currentValue) {
+                this.element.value = this.prefix + this.reverseIfNeeded(value) + this.suffix;
+                this.selection = this.calcNewSelection(oldSelection);
+            }
         }
 
         public get selection(): number {
@@ -150,7 +121,39 @@
         }
 
         private removePrefixAndSuffix(value: string): string {
-            return value.replace(new RegExp(`^${this.prefix}|${this.suffix}$`, 'g'), '');
+            value = this.removeStrOccurences(value, this.prefix, 0);
+            value = this.removeStrOccurences(value, this.suffix, value.length - this.suffix.length);
+            console.log(value);
+            return value;
+        }
+
+        public removeStrOccurences(str: string, rmStr: string, startIndex: number) {
+            if (str.indexOf(rmStr) === startIndex) {
+                if (startIndex === 0) { return str.substr(rmStr.length); }
+                return str.substring(0, startIndex);
+            }
+
+            let length = rmStr.length, lastStrIndex = startIndex, joinArr = [];
+            if (startIndex > 0) { joinArr.push(str.substring(0, startIndex)); }
+
+
+            for (let i = 0; i < length; i++) {
+                let rmChar = rmStr.charAt(i), strIndex = startIndex + i;
+
+                if (str.charAt(strIndex) === rmChar) {
+                    lastStrIndex = strIndex + 1;
+
+                } else if (str.charAt(strIndex + 1) === rmChar) {
+                    joinArr.push(str.substring(lastStrIndex, strIndex + 1));
+                    lastStrIndex = strIndex + 2;
+                    startIndex++;
+                } else {
+                    startIndex--;
+                }
+            }
+
+            joinArr.push(str.substr(lastStrIndex));
+            return joinArr.join('');
         }
 
         private reverseIfNeeded(str: string): string {
@@ -167,7 +170,7 @@
 
         private calcNewSelection(oldSelection: number): number {
             if (this.dir === DirectionEnum.BACKWARD) {
-                return this.element.value.length - this.suffix.length;
+                return this.currentValue.length - this.suffix.length;
             }
 
             let newSelection = oldSelection - this.prefix.length;
@@ -192,7 +195,7 @@
 
         private getMaxSelection(stopValue: number) {
             let length = this.pattern.length,
-                rawLength = this.currentRawValue.length;
+                rawLength = this.getRawValue().length;
             if (!stopValue || !rawLength) { return 0; }
             for (let i = 1; i < length; i++) {
                 if (isPlaceholder(this.pattern.charAt(i - 1))) {
@@ -206,13 +209,13 @@
             if (!el.autoMask) { return el.autoMask = AutoMask.byElement(el); }
             
             let mask = el.autoMask;
-            mask.lastRawValue = mask.currentRawValue;
-            mask.currentRawValue = mask.getRawValue();
+            mask.lastValue = mask.currentValue;
+            mask.currentValue = mask.element.value;
 
-            if (mask.currentRawValue.length < mask.lastRawValue.length) {
+            if (mask.currentValue.length < mask.lastValue.length) {
                 mask.keyPressed = 'backspace';
             } else {
-                mask.keyPressed = el.value.charAt(mask.selection - 1);
+                mask.keyPressed = mask.currentValue.charAt(mask.selection - 1);
             }
 
             return mask;
@@ -235,7 +238,7 @@
                 if (isPlaceholder(mask.pattern.charAt(i))) { mask.rawTotalLength++; }
             }
 
-            mask.currentRawValue = mask.getRawValue();
+            mask.currentValue = el.value;
             el.maxLength = mask.pattern.length + mask.prefix.length + mask.suffix.length + 1;
             return mask;
         }
