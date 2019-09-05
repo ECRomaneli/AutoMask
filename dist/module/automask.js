@@ -7,24 +7,24 @@
     })(DirectionEnum || (DirectionEnum = {}));
     let AttrEnum;
     (function (AttrEnum) {
-        AttrEnum["PATTERN"] = "pattern";
+        AttrEnum["MASK"] = "mask";
         AttrEnum["PREFIX"] = "prefix";
         AttrEnum["SUFFIX"] = "suffix";
         AttrEnum["DIRECTION"] = "dir";
         AttrEnum["ACCEPT"] = "accept";
         AttrEnum["SHOW_MASK"] = "show-mask";
     })(AttrEnum || (AttrEnum = {}));
-    const DOC = document, MASK_SELECTOR = `[type="mask"]`, EVENT = 'input';
+    const DOC = document, MASK_SELECTOR = `[mask]`;
     function main() {
         let inputs = DOC.querySelectorAll(MASK_SELECTOR), i = inputs.length;
         while (i) {
             let el = inputs[--i];
             onInputChange(el);
-            el.addEventListener(EVENT, () => { onInputChange(el); }, true);
+            el.addEventListener('input', () => { onInputChange(el); }, true);
         }
     }
     function onInputChange(el) {
-        let mask = AutoMask.getAutoMask(el), length = mask.pattern.length, rawValue = mask.getRawValue(), value = '', valuePos = 0;
+        let mask = AutoMask.getAutoMask(el), rawValue = mask.getRawValue(), length = mask.pattern.length, value = '', valuePos = 0;
         for (var i = 0; i < length; i++) {
             let maskChar = mask.pattern.charAt(i);
             if (isIndexOut(rawValue, valuePos)) {
@@ -41,9 +41,6 @@
             }
         }
         mask.value = value;
-        if (mask.dir === DirectionEnum.BACKWARD) {
-            mask.selection = el.value.length - mask.suffix.length;
-        }
     }
     function isIndexOut(str, index) {
         return index >= str.length || index < 0;
@@ -71,9 +68,9 @@
     ready(main);
     class AutoMask {
         set value(value) {
-            let newSelection = this.calcNewSelection(); // Execute before change value
+            let oldSelection = this.selection;
             this.element.value = this.prefix + this.reverseIfNeeded(value) + this.suffix;
-            this.selection = newSelection;
+            this.selection = this.calcNewSelection(oldSelection);
         }
         get selection() {
             return this.element.selectionStart;
@@ -84,6 +81,7 @@
         getRawValue() {
             let value = this.removePrefixAndSuffix(this.element.value);
             value = this.removeZeros(value.replace(this.deny, ''));
+            value = value.substr(0, this.rawTotalLength);
             return this.reverseIfNeeded(value);
         }
         isValidKey() {
@@ -94,8 +92,39 @@
             return !this.deny.test(this.keyPressed);
         }
         removePrefixAndSuffix(value) {
-            return value.replace(this.prefix, '').replace(this.suffix, ''); // Fix input before prefix and after suffix
-            // return value.substring(this.prefix.length, value.length - this.suffix.length);
+            value = this.removeStrOccurences(value, this.prefix, 0);
+            value = this.removeStrOccurences(value, this.suffix, value.length - this.suffix.length - 1);
+            console.log(value);
+            return value;
+        }
+        removeStrOccurences(str, rmStr, startIndex) {
+            if (str.indexOf(rmStr) === startIndex) {
+                if (startIndex === 0) {
+                    return str.substr(rmStr.length);
+                }
+                return str.substring(0, startIndex);
+            }
+            let length = rmStr.length, lastStrIndex = startIndex, joinArr = [];
+            if (startIndex > 0) {
+                joinArr.push(str.substring(0, startIndex));
+            }
+            let teste = startIndex ? 0 : 1;
+            for (let i = 0; i < length; i++) {
+                let rmChar = rmStr.charAt(i), strIndex = startIndex + i;
+                if (str.charAt(strIndex + (1 - teste)) === rmChar) {
+                    lastStrIndex = strIndex + 1;
+                }
+                else if (str.charAt(strIndex + teste) === rmChar) {
+                    joinArr.push(str.substring(lastStrIndex, strIndex + 1));
+                    lastStrIndex = strIndex + 2;
+                    startIndex++;
+                }
+                else {
+                    startIndex--;
+                }
+            }
+            joinArr.push(str.substr(lastStrIndex));
+            return joinArr.join('');
         }
         reverseIfNeeded(str) {
             if (this.dir !== DirectionEnum.BACKWARD) {
@@ -113,30 +142,43 @@
             }
             return value.replace(this.dir === DirectionEnum.FORWARD ? /0*$/ : /^0*/, '');
         }
-        calcNewSelection() {
+        calcNewSelection(oldSelection) {
             if (this.dir === DirectionEnum.BACKWARD) {
+                return this.element.value.length - this.suffix.length;
             }
-            let newSelection = this.selection, prefixAndPattern = this.prefix + this.pattern;
-            // If not a valid key, return position
+            let newSelection = oldSelection - this.prefix.length;
+            // Fix selections between the prefix
+            if (newSelection < 1) {
+                newSelection = this.keyPressed && this.keyPressed !== 'backspace' ? 1 : 0;
+            }
+            // If not a valid key, then return to the last valid placeholder
+            let sum;
             if (!this.isValidKey()) {
-                return newSelection - 1;
+                newSelection--;
+                sum = -1;
             }
-            // Search next valid position
-            let sum = this.keyPressed !== 'backspace' ? +1 : -1;
-            while (!isPlaceholder(prefixAndPattern.charAt(newSelection - 1))) {
+            else {
+                sum = this.keyPressed !== 'backspace' ? +1 : -1;
+            }
+            while (!isPlaceholder(this.pattern.charAt(newSelection - 1))) {
                 newSelection += sum;
             }
             // Fix positions after last input
-            let max;
-            try {
-                max = prefixAndPattern.match(new RegExp(`([^_0]*[_0]){${this.getRawValue().length}}`))[0].length;
-            }
-            catch (_ex) {
-                max = prefixAndPattern.length;
-            }
-            return newSelection > max ? max : newSelection;
+            return this.getMaxSelection(newSelection) + this.prefix.length;
         }
-        getSelectionPosition() {
+        getMaxSelection(stopValue) {
+            let length = this.pattern.length, rawLength = this.currentRawValue.length;
+            if (!stopValue || !rawLength) {
+                return 0;
+            }
+            for (let i = 1; i < length; i++) {
+                if (isPlaceholder(this.pattern.charAt(i - 1))) {
+                    if (--rawLength < 1 || i === stopValue) {
+                        return i;
+                    }
+                }
+            }
+            return length;
         }
         static getAutoMask(el) {
             if (!el.autoMask) {
@@ -145,7 +187,7 @@
             let mask = el.autoMask;
             mask.lastRawValue = mask.currentRawValue;
             mask.currentRawValue = mask.getRawValue();
-            if (mask.currentRawValue.length <= mask.lastRawValue.length) {
+            if (mask.currentRawValue.length < mask.lastRawValue.length) {
                 mask.keyPressed = 'backspace';
             }
             else {
@@ -158,11 +200,18 @@
             mask.dir = el.getAttribute(AttrEnum.DIRECTION) || DirectionEnum.FORWARD;
             mask.prefix = el.getAttribute(AttrEnum.PREFIX) || '';
             mask.suffix = el.getAttribute(AttrEnum.SUFFIX) || '';
-            mask.pattern = mask.reverseIfNeeded(el.getAttribute(AttrEnum.PATTERN));
+            mask.pattern = mask.reverseIfNeeded(el.getAttribute(AttrEnum.MASK));
             mask.showMask = (el.getAttribute(AttrEnum.SHOW_MASK) + '').toLowerCase() === 'true' || false;
             mask.deny = new RegExp(`[^${el.getAttribute(AttrEnum.ACCEPT) || '\\d'}]`, 'g');
             mask.element = el;
             mask.zeroPadEnabled = mask.pattern.indexOf('0') !== -1;
+            let length = mask.pattern.length;
+            mask.rawTotalLength = 0;
+            for (let i = 0; i < length; i++) {
+                if (isPlaceholder(mask.pattern.charAt(i))) {
+                    mask.rawTotalLength++;
+                }
+            }
             mask.currentRawValue = mask.getRawValue();
             el.maxLength = mask.pattern.length + mask.prefix.length + mask.suffix.length + 1;
             return mask;

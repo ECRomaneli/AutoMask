@@ -6,20 +6,20 @@
     })(DirectionEnum || (DirectionEnum = {}));
     var AttrEnum;
     (function (AttrEnum) {
-        AttrEnum["PATTERN"] = "pattern";
+        AttrEnum["MASK"] = "mask";
         AttrEnum["PREFIX"] = "prefix";
         AttrEnum["SUFFIX"] = "suffix";
         AttrEnum["DIRECTION"] = "dir";
         AttrEnum["ACCEPT"] = "accept";
         AttrEnum["SHOW_MASK"] = "show-mask";
     })(AttrEnum || (AttrEnum = {}));
-    var DOC = document, MASK_SELECTOR = "[type=\"mask\"]", EVENT = 'input';
+    var DOC = document, MASK_SELECTOR = "[mask]";
     function main() {
         var inputs = DOC.querySelectorAll(MASK_SELECTOR), i = inputs.length;
         var _loop_1 = function () {
             var el = inputs[--i];
             onInputChange(el);
-            el.addEventListener(EVENT, function () { onInputChange(el); }, true);
+            el.addEventListener('input', function () { onInputChange(el); }, true);
         };
         while (i) {
             _loop_1();
@@ -46,15 +46,6 @@
     }
     function isIndexOut(str, index) {
         return index >= str.length || index < 0;
-    }
-    function some(str, it) {
-        var length = str.length;
-        for (var i = 0; i < length; i++) {
-            if (it(str.charAt(i), i) === true) {
-                return true;
-            }
-        }
-        return false;
     }
     function isPlaceholder(maskChar) {
         return maskChar === '_' ? true : // Placeholder
@@ -114,7 +105,7 @@
         };
         AutoMask.prototype.removePrefixAndSuffix = function (value) {
             value = this.removeStrOccurences(value, this.prefix, 0);
-            value = this.removeStrOccurences(value, this.suffix, value.length - this.suffix.length);
+            value = this.removeStrOccurences(value, this.suffix, value.length - this.suffix.length - 1);
             console.log(value);
             return value;
         };
@@ -129,14 +120,16 @@
             if (startIndex > 0) {
                 joinArr.push(str.substring(0, startIndex));
             }
+            var teste = startIndex ? 0 : 1;
             for (var i = 0; i < length; i++) {
                 var rmChar = rmStr.charAt(i), strIndex = startIndex + i;
-                if (str.charAt(strIndex) === rmChar) {
+                if (str.charAt(strIndex + (1 - teste)) === rmChar) {
                     lastStrIndex = strIndex + 1;
                 }
-                else if (str.charAt(strIndex + 1) === rmChar) {
+                else if (str.charAt(strIndex + teste) === rmChar) {
                     joinArr.push(str.substring(lastStrIndex, strIndex + 1));
                     lastStrIndex = strIndex + 2;
+                    startIndex++;
                 }
                 else {
                     startIndex--;
@@ -219,10 +212,9 @@
             mask.dir = el.getAttribute(AttrEnum.DIRECTION) || DirectionEnum.FORWARD;
             mask.prefix = el.getAttribute(AttrEnum.PREFIX) || '';
             mask.suffix = el.getAttribute(AttrEnum.SUFFIX) || '';
-            mask.pattern = mask.reverseIfNeeded(el.getAttribute(AttrEnum.PATTERN));
+            mask.pattern = mask.reverseIfNeeded(el.getAttribute(AttrEnum.MASK));
             mask.showMask = (el.getAttribute(AttrEnum.SHOW_MASK) + '').toLowerCase() === 'true' || false;
             mask.deny = new RegExp("[^" + (el.getAttribute(AttrEnum.ACCEPT) || '\\d') + "]", 'g');
-            window['remover'] = mask.removeStrOccurences;
             mask.element = el;
             mask.zeroPadEnabled = mask.pattern.indexOf('0') !== -1;
             var length = mask.pattern.length;

@@ -4,7 +4,7 @@
     }
 
     enum AttrEnum {
-        PATTERN = 'pattern', 
+        MASK = 'mask', 
         PREFIX = 'prefix',
         SUFFIX = 'suffix', 
         DIRECTION = 'dir',
@@ -17,19 +17,18 @@
     }
 
     const   DOC: Document = document,
-            MASK_SELECTOR: string = `[type="mask"]`,
-            EVENT: string = 'input';
+            MASK_SELECTOR: string = `[mask]`;
 
     function main() {
         let inputs: NodeListOf<Element> = DOC.querySelectorAll(MASK_SELECTOR), i = inputs.length;
         while (i) {
             let el: AutoMaskElement = <AutoMaskElement> inputs[--i];
             onInputChange(el);
-            el.addEventListener(EVENT, () => { onInputChange(el); }, true);
+            el.addEventListener('input', () => { onInputChange(el); }, true);
         }
     }
 
-    function onInputChange(el: AutoMaskElement) {
+    function onInputChange(el: AutoMaskElement): void {
         let mask = AutoMask.getAutoMask(el),
             rawValue = mask.getRawValue(),
             length = mask.pattern.length,
@@ -55,14 +54,6 @@
 
     function isIndexOut(str: string, index: number): boolean {
         return index >= str.length || index < 0;
-    }
-
-    function some(str: string, it: (char: string, index: number) => true | false | void) {
-        let length = str.length;
-        for (let i = 0; i < length; i++) {
-            if (it(str.charAt(i), i) === true) { return true; }
-        }
-        return false;
     }
 
     function isPlaceholder(maskChar: string): boolean {
@@ -124,13 +115,13 @@
 
         public isValidKey(): boolean {
             if (this.keyPressed === void 0 
-             || this.keyPressed === 'backspace') { return true; }
+            ||  this.keyPressed === 'backspace') { return true; }
             return !this.deny.test(this.keyPressed);
         }
 
         private removePrefixAndSuffix(value: string): string {
             value = this.removeStrOccurences(value, this.prefix, 0);
-            value = this.removeStrOccurences(value, this.suffix, value.length - this.suffix.length);
+            value = this.removeStrOccurences(value, this.suffix, value.length - this.suffix.length - 1);
             console.log(value);
             return value;
         }
@@ -143,16 +134,18 @@
 
             let length = rmStr.length, lastStrIndex = startIndex, joinArr = [];
             if (startIndex > 0) { joinArr.push(str.substring(0, startIndex)); }
+            let teste = startIndex ? 0 : 1;
 
             for (let i = 0; i < length; i++) {
                 let rmChar = rmStr.charAt(i), strIndex = startIndex + i;
 
-                if (str.charAt(strIndex) === rmChar) {
+                if (str.charAt(strIndex + (1 - teste)) === rmChar) {
                     lastStrIndex = strIndex + 1;
 
-                } else if (str.charAt(strIndex + 1) === rmChar) {
+                } else if (str.charAt(strIndex + teste) === rmChar) {
                     joinArr.push(str.substring(lastStrIndex, strIndex + 1));
                     lastStrIndex = strIndex + 2;
+                    startIndex++;
 
                 } else {
                     startIndex--;
@@ -233,10 +226,9 @@
             mask.dir = <DirectionEnum> el.getAttribute(AttrEnum.DIRECTION) || DirectionEnum.FORWARD;
             mask.prefix = el.getAttribute(AttrEnum.PREFIX) || '';
             mask.suffix = el.getAttribute(AttrEnum.SUFFIX) || '';
-            mask.pattern = mask.reverseIfNeeded(el.getAttribute(AttrEnum.PATTERN));
+            mask.pattern = mask.reverseIfNeeded(el.getAttribute(AttrEnum.MASK));
             mask.showMask = (el.getAttribute(AttrEnum.SHOW_MASK) + '').toLowerCase() === 'true' || false;
             mask.deny = new RegExp(`[^${el.getAttribute(AttrEnum.ACCEPT) || '\\d'}]`, 'g');
-            window['remover'] = mask.removeStrOccurences;
             mask.element = el;
             mask.zeroPadEnabled = mask.pattern.indexOf('0') !== -1;
             
