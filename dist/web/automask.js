@@ -13,17 +13,41 @@
         AttrEnum["ACCEPT"] = "accept";
         AttrEnum["SHOW_MASK"] = "show-mask";
     })(AttrEnum || (AttrEnum = {}));
+    var EventEnum;
+    (function (EventEnum) {
+        EventEnum["CHANGE"] = "input";
+        EventEnum["KEYDOWN"] = "keydown";
+    })(EventEnum || (EventEnum = {}));
     var DOC = document, MASK_SELECTOR = "[mask]";
     function main() {
         var inputs = DOC.querySelectorAll(MASK_SELECTOR), i = inputs.length;
         var _loop_1 = function () {
             var el = inputs[--i];
             onInputChange(el);
-            el.addEventListener('input', function () { onInputChange(el); }, true);
+            el.addEventListener(EventEnum.KEYDOWN, function () { console.log('keydown', el.value, el.selectionStart); onKeyDown(el); }, true);
+            el.addEventListener(EventEnum.CHANGE, function () { console.log('change', el.value, el.selectionStart); onInputChange(el); }, true);
         };
         while (i) {
             _loop_1();
         }
+    }
+    function onKeyDown(el) {
+        var mask = AutoMask.getAutoMask(el), selectionStart = el.selectionStart, selectionEnd = el.selectionEnd, prefixLimit = mask.prefix.length, suffixLimit = mask.pattern.length + mask.prefix.length;
+        if (selectionStart < prefixLimit) {
+            selectionStart = prefixLimit;
+        }
+        else if (selectionStart > suffixLimit) {
+            selectionStart = suffixLimit;
+        }
+        if (selectionEnd < prefixLimit) {
+            selectionEnd = prefixLimit;
+        }
+        else if (selectionEnd > suffixLimit) {
+            selectionEnd = suffixLimit;
+        }
+        el.selectionStart = selectionStart;
+        el.selectionEnd = selectionEnd;
+        console.log('onKeyDown finished!');
     }
     function onInputChange(el) {
         var mask = AutoMask.getAutoMask(el), rawValue = mask.getRawValue(), length = mask.pattern.length, value = '', valuePos = 0;
@@ -104,39 +128,7 @@
             return !this.deny.test(this.keyPressed);
         };
         AutoMask.prototype.removePrefixAndSuffix = function (value) {
-            value = this.removeStrOccurences(value, this.prefix, 0);
-            value = this.removeStrOccurences(value, this.suffix, value.length - this.suffix.length - 1);
-            console.log(value);
-            return value;
-        };
-        AutoMask.prototype.removeStrOccurences = function (str, rmStr, startIndex) {
-            if (str.indexOf(rmStr) === startIndex) {
-                if (startIndex === 0) {
-                    return str.substr(rmStr.length);
-                }
-                return str.substring(0, startIndex);
-            }
-            var length = rmStr.length, lastStrIndex = startIndex, joinArr = [];
-            if (startIndex > 0) {
-                joinArr.push(str.substring(0, startIndex));
-            }
-            var teste = startIndex ? 0 : 1;
-            for (var i = 0; i < length; i++) {
-                var rmChar = rmStr.charAt(i), strIndex = startIndex + i;
-                if (str.charAt(strIndex + (1 - teste)) === rmChar) {
-                    lastStrIndex = strIndex + 1;
-                }
-                else if (str.charAt(strIndex + teste) === rmChar) {
-                    joinArr.push(str.substring(lastStrIndex, strIndex + 1));
-                    lastStrIndex = strIndex + 2;
-                    startIndex++;
-                }
-                else {
-                    startIndex--;
-                }
-            }
-            joinArr.push(str.substr(lastStrIndex));
-            return joinArr.join('');
+            return value.replace(new RegExp("^" + this.prefix + "|" + this.suffix + "$", 'g'), '');
         };
         AutoMask.prototype.reverseIfNeeded = function (str) {
             if (this.dir !== DirectionEnum.BACKWARD) {

@@ -12,6 +12,11 @@
         SHOW_MASK = 'show-mask'
     }
 
+    enum EventEnum {
+        CHANGE = 'input',
+        KEYDOWN = 'keydown'
+    }
+
     interface AutoMaskElement extends HTMLInputElement {
         autoMask?: AutoMask
     }
@@ -24,8 +29,33 @@
         while (i) {
             let el: AutoMaskElement = <AutoMaskElement> inputs[--i];
             onInputChange(el);
-            el.addEventListener('input', () => { onInputChange(el); }, true);
+            el.addEventListener(EventEnum.KEYDOWN, () => { console.log('keydown', el.value, el.selectionStart); onKeyDown(el); }, true);
+            el.addEventListener(EventEnum.CHANGE, () => { console.log('change', el.value, el.selectionStart); onInputChange(el); }, true);
         }
+    }
+
+    function onKeyDown(el: AutoMaskElement): void {
+        let mask = AutoMask.getAutoMask(el),
+            selectionStart = el.selectionStart,
+            selectionEnd = el.selectionEnd,
+            prefixLimit = mask.prefix.length,
+            suffixLimit = mask.pattern.length + mask.prefix.length;
+
+        if (selectionStart < prefixLimit) {
+            selectionStart = prefixLimit;
+        } else if (selectionStart > suffixLimit) {
+            selectionStart = suffixLimit;
+        }
+
+        if (selectionEnd < prefixLimit) {
+            selectionEnd = prefixLimit;
+        } else if (selectionEnd > suffixLimit) {
+            selectionEnd = suffixLimit;
+        }
+
+        el.selectionStart = selectionStart;
+        el.selectionEnd = selectionEnd;
+        console.log('onKeyDown finished!');
     }
 
     function onInputChange(el: AutoMaskElement): void {
@@ -115,45 +145,12 @@
 
         public isValidKey(): boolean {
             if (this.keyPressed === void 0 
-            ||  this.keyPressed === 'backspace') { return true; }
+             || this.keyPressed === 'backspace') { return true; }
             return !this.deny.test(this.keyPressed);
         }
 
         private removePrefixAndSuffix(value: string): string {
-            value = this.removeStrOccurences(value, this.prefix, 0);
-            value = this.removeStrOccurences(value, this.suffix, value.length - this.suffix.length - 1);
-            console.log(value);
-            return value;
-        }
-
-        public removeStrOccurences(str: string, rmStr: string, startIndex: number) {
-            if (str.indexOf(rmStr) === startIndex) {
-                if (startIndex === 0) { return str.substr(rmStr.length); }
-                return str.substring(0, startIndex);
-            }
-
-            let length = rmStr.length, lastStrIndex = startIndex, joinArr = [];
-            if (startIndex > 0) { joinArr.push(str.substring(0, startIndex)); }
-            let teste = startIndex ? 0 : 1;
-
-            for (let i = 0; i < length; i++) {
-                let rmChar = rmStr.charAt(i), strIndex = startIndex + i;
-
-                if (str.charAt(strIndex + (1 - teste)) === rmChar) {
-                    lastStrIndex = strIndex + 1;
-
-                } else if (str.charAt(strIndex + teste) === rmChar) {
-                    joinArr.push(str.substring(lastStrIndex, strIndex + 1));
-                    lastStrIndex = strIndex + 2;
-                    startIndex++;
-
-                } else {
-                    startIndex--;
-                }
-            }
-
-            joinArr.push(str.substr(lastStrIndex));
-            return joinArr.join('');
+            return value.replace(new RegExp(`^${this.prefix}|${this.suffix}$`, 'g'), '');
         }
 
         private reverseIfNeeded(str: string): string {
