@@ -91,8 +91,7 @@
         Object.defineProperty(AutoMask.prototype, "value", {
             get: function () {
                 var value = this.removePrefixAndSuffix(this.element.value);
-                value = this.removeZeros(value.replace(this.deny, ''));
-                value = value.substr(0, this.rawTotalLength);
+                value = this.removeZeros(value.replace(this.deny, '')).substr(0, this.rawTotalLength);
                 return this.reverseIfNeeded(value);
             },
             set: function (value) {
@@ -207,19 +206,17 @@
             return this.element.getAttribute(attrName) || defaultValue;
         };
         AutoMask.prototype.updateValue = function () {
-            var mask = this.element.autoMask, key = this.element.value.charAt(mask.selection - 1);
-            mask.lastValue = mask.currentValue;
-            mask.currentValue = this.element.value.replace(this.deny, '');
-            if (mask.currentValue.length === mask.lastValue.length + 1) {
-                mask.keyType = mask.deny.test(key) ? KeyTypeEnum.INVALID : KeyTypeEnum.VALID;
+            this.lastValue = this.currentValue;
+            this.currentValue = this.value;
+            if (this.currentValue.length === this.lastValue.length + 1) {
+                this.keyType = this.deny.test(this.element.value.charAt(this.selection - 1)) ? KeyTypeEnum.INVALID : KeyTypeEnum.VALID;
             }
-            else if (mask.currentValue.length === mask.lastValue.length - 1) {
-                mask.keyType = KeyTypeEnum.BACKSPACE;
+            else if (this.currentValue.length === this.lastValue.length - 1) {
+                this.keyType = KeyTypeEnum.BACKSPACE;
             }
             else {
-                mask.keyType = KeyTypeEnum.UNKNOWN;
+                this.keyType = KeyTypeEnum.UNKNOWN;
             }
-            console.log(key, mask.keyType, this.element.value, mask.currentValue);
         };
         AutoMask.getAutoMask = function (el) {
             if (el.autoMask === void 0) {
@@ -246,8 +243,8 @@
                     mask.rawTotalLength++;
                 }
             }
-            mask.currentValue = el.value.replace(mask.deny, '');
             el.maxLength = mask.pattern.length + mask.prefix.length + mask.suffix.length + 1;
+            mask.currentValue = mask.value;
             return mask;
         };
         return AutoMask;
