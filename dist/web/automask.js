@@ -1,9 +1,4 @@
 (function () {
-    var DirectionEnum;
-    (function (DirectionEnum) {
-        DirectionEnum["FORWARD"] = "forward";
-        DirectionEnum["BACKWARD"] = "backward";
-    })(DirectionEnum || (DirectionEnum = {}));
     var AttrEnum;
     (function (AttrEnum) {
         AttrEnum["MASK"] = "mask";
@@ -13,24 +8,36 @@
         AttrEnum["ACCEPT"] = "accept";
         AttrEnum["SHOW_MASK"] = "show-mask";
     })(AttrEnum || (AttrEnum = {}));
+    var DirectionEnum;
+    (function (DirectionEnum) {
+        DirectionEnum["FORWARD"] = "forward";
+        DirectionEnum["BACKWARD"] = "backward";
+    })(DirectionEnum || (DirectionEnum = {}));
+    var KeyTypeEnum;
+    (function (KeyTypeEnum) {
+        KeyTypeEnum["UNKNOWN"] = "unknown";
+        KeyTypeEnum["BACKSPACE"] = "backspace";
+        KeyTypeEnum["INVALID"] = "invalid";
+        KeyTypeEnum["VALID"] = "valid";
+    })(KeyTypeEnum || (KeyTypeEnum = {}));
     var DOC = document, MASK_SELECTOR = "[mask]";
     function main() {
         var inputs = DOC.querySelectorAll(MASK_SELECTOR), i = inputs.length;
         var _loop_1 = function () {
             var el = inputs[--i];
-            onInputChange(el);
-            el.addEventListener('input', function () { onInputChange(el); }, true);
+            onInput(el);
+            el.addEventListener('input', function () { onInput(el); }, true);
         };
         while (i) {
             _loop_1();
         }
     }
-    function onInputChange(el) {
-        var mask = AutoMask.getAutoMask(el), rawValue = mask.getRawValue(), length = mask.pattern.length, value = '', valuePos = 0;
+    function onInput(el) {
+        var mask = AutoMask.getAutoMask(el), rawValue = mask.value, length = mask.pattern.length, value = '', valuePos = 0;
         for (var i = 0; i < length; i++) {
             var maskChar = mask.pattern.charAt(i);
             if (isIndexOut(rawValue, valuePos)) {
-                if (!(mask.showMask || isZero(mask.pattern, i))) {
+                if (!(mask.showMask || isZeroPad(mask.pattern, i))) {
                     break;
                 }
                 value += maskChar;
@@ -44,12 +51,10 @@
     function isIndexOut(str, index) {
         return index >= str.length || index < 0;
     }
-    function isPlaceholder(maskChar) {
-        return maskChar === '_' ? true : // Placeholder
-            maskChar === '0' ? true : // ZeroPad
-                maskChar === '' ? true : false; // EOF # Fix infinite loop
+    function isPlaceholder(ch) {
+        return ch === '_' || ch === '0' || ch === ''; // # Fix infinite loop
     }
-    function isZero(str, index) {
+    function isZeroPad(str, index) {
         while (!isIndexOut(str, index)) {
             var char = str.charAt(index++);
             if (char === '0') {
@@ -61,6 +66,21 @@
         }
         return false;
     }
+    function isZero(_a, _b) {
+        for (var i = 0; i < length; i++) {
+            if (arguments[i] === 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+    function reverseStr(str) {
+        var rStr = "", i = str.length;
+        while (i) {
+            rStr += str[--i];
+        }
+        return rStr;
+    }
     function ready(handler) {
         DOC.addEventListener('DOMContentLoaded', handler);
     }
@@ -69,12 +89,28 @@
         function AutoMask() {
         }
         Object.defineProperty(AutoMask.prototype, "value", {
+            get: function () {
+                var value = this.removePrefixAndSuffix(this.element.value);
+                value = this.removeZeros(value.replace(this.deny, ''));
+                value = value.substr(0, this.rawTotalLength);
+                return this.reverseIfNeeded(value);
+            },
             set: function (value) {
                 var oldSelection = this.selection;
-                if (this.lastValue !== this.currentValue) {
-                    this.element.value = this.prefix + this.reverseIfNeeded(value) + this.suffix;
-                    this.selection = this.calcNewSelection(oldSelection);
-                }
+                //if (this.lastValue !== this.currentValue) {
+                this.element.value = this.prefix + this.reverseIfNeeded(value) + this.suffix;
+                this.selection = this.calcNewSelection(oldSelection);
+                //}
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(AutoMask.prototype, "elValue", {
+            get: function () {
+                return this.element.value;
+            },
+            set: function (value) {
+                this.element.value = value;
             },
             enumerable: true,
             configurable: true
@@ -89,62 +125,38 @@
             enumerable: true,
             configurable: true
         });
-        AutoMask.prototype.getRawValue = function () {
-            var value = this.removePrefixAndSuffix(this.element.value);
-            value = this.removeZeros(value.replace(this.deny, ''));
-            value = value.substr(0, this.rawTotalLength);
-            return this.reverseIfNeeded(value);
-        };
-        AutoMask.prototype.isValidKey = function () {
-            if (this.keyPressed === void 0
-                || this.keyPressed === 'backspace') {
-                return true;
-            }
-            return !this.deny.test(this.keyPressed);
-        };
         AutoMask.prototype.removePrefixAndSuffix = function (value) {
-            value = this.removeStrOccurences(value, this.prefix, 0);
-            value = this.removeStrOccurences(value, this.suffix, value.length - this.suffix.length);
-            console.log(value);
+            value = this.removePrefix(value, this.prefix);
+            value = reverseStr(this.removePrefix(reverseStr(value), reverseStr(this.suffix)));
+            // console.log(value);
             return value;
         };
-        AutoMask.prototype.removeStrOccurences = function (str, rmStr, startIndex) {
-            if (str.indexOf(rmStr) === startIndex) {
-                if (startIndex === 0) {
-                    return str.substr(rmStr.length);
-                }
-                return str.substring(0, startIndex);
+        AutoMask.prototype.removePrefix = function (value, prefix) {
+            if (value.indexOf(prefix) === 0) {
+                return value.substr(prefix.length);
             }
-            var length = rmStr.length, lastStrIndex = startIndex, joinArr = [];
-            if (startIndex > 0) {
-                joinArr.push(str.substring(0, startIndex));
-            }
+            var length = prefix.length, shift = 0, valueChar;
             for (var i = 0; i < length; i++) {
-                var rmChar = rmStr.charAt(i), strIndex = startIndex + i;
-                if (str.charAt(strIndex) === rmChar) {
-                    lastStrIndex = strIndex + 1;
-                }
-                else if (str.charAt(strIndex + 1) === rmChar) {
-                    joinArr.push(str.substring(lastStrIndex, strIndex + 1));
-                    lastStrIndex = strIndex + 2;
-                    startIndex++;
-                }
-                else {
-                    startIndex--;
+                var prefixChar = prefix.charAt(i);
+                valueChar = value.charAt(i);
+                if (prefixChar !== valueChar) {
+                    shift = prefixChar === value.charAt(i + 1) ? +1 : -1;
+                    break;
                 }
             }
-            joinArr.push(str.substr(lastStrIndex));
-            return joinArr.join('');
+            var prefixLeftIndex = i + shift;
+            if (prefixLeftIndex !== -1 && prefixLeftIndex === value.indexOf(prefix.substr(i), prefixLeftIndex)) {
+                return (shift === 1 ? valueChar : '') + value.substr(prefix.length + shift);
+            }
+            else {
+                return value;
+            }
         };
         AutoMask.prototype.reverseIfNeeded = function (str) {
             if (this.dir !== DirectionEnum.BACKWARD) {
                 return str;
             }
-            var rStr = "", i = str.length;
-            while (i) {
-                rStr += str[--i];
-            }
-            return rStr;
+            return reverseStr(str);
         };
         AutoMask.prototype.removeZeros = function (value) {
             if (!this.zeroPadEnabled) {
@@ -159,16 +171,16 @@
             var newSelection = oldSelection - this.prefix.length;
             // Fix selections between the prefix
             if (newSelection < 1) {
-                newSelection = this.keyPressed && this.keyPressed !== 'backspace' ? 1 : 0;
+                newSelection = this.keyType === KeyTypeEnum.BACKSPACE ? 0 : 1;
             }
             // If not a valid key, then return to the last valid placeholder
             var sum;
-            if (!this.isValidKey()) {
+            if (this.keyType === KeyTypeEnum.INVALID) {
                 newSelection--;
                 sum = -1;
             }
             else {
-                sum = this.keyPressed !== 'backspace' ? +1 : -1;
+                sum = this.keyType === KeyTypeEnum.BACKSPACE ? -1 : +1;
             }
             while (!isPlaceholder(this.pattern.charAt(newSelection - 1))) {
                 newSelection += sum;
@@ -177,44 +189,56 @@
             return this.getMaxSelection(newSelection) + this.prefix.length;
         };
         AutoMask.prototype.getMaxSelection = function (stopValue) {
-            var length = this.pattern.length, rawLength = this.getRawValue().length;
-            if (!stopValue || !rawLength) {
+            var length = this.pattern.length, rawLength = this.value.length;
+            // If stopValue or rawLength is zero, so return 0
+            if (isZero(stopValue, rawLength)) {
                 return 0;
             }
             for (var i = 1; i < length; i++) {
                 if (isPlaceholder(this.pattern.charAt(i - 1))) {
-                    if (--rawLength < 1 || i === stopValue) {
+                    if (isZero(--rawLength) || stopValue === i) {
                         return i;
                     }
                 }
             }
             return length;
         };
-        AutoMask.getAutoMask = function (el) {
-            if (!el.autoMask) {
-                return el.autoMask = AutoMask.byElement(el);
-            }
-            var mask = el.autoMask;
+        AutoMask.prototype.attr = function (attrName, defaultValue) {
+            return this.element.getAttribute(attrName) || defaultValue;
+        };
+        AutoMask.prototype.updateValue = function () {
+            var mask = this.element.autoMask, key = this.element.value.charAt(mask.selection - 1);
             mask.lastValue = mask.currentValue;
-            mask.currentValue = mask.element.value;
-            if (mask.currentValue.length < mask.lastValue.length) {
-                mask.keyPressed = 'backspace';
+            mask.currentValue = this.element.value.replace(this.deny, '');
+            if (mask.currentValue.length === mask.lastValue.length + 1) {
+                mask.keyType = mask.deny.test(key) ? KeyTypeEnum.INVALID : KeyTypeEnum.VALID;
+            }
+            else if (mask.currentValue.length === mask.lastValue.length - 1) {
+                mask.keyType = KeyTypeEnum.BACKSPACE;
             }
             else {
-                mask.keyPressed = mask.currentValue.charAt(mask.selection - 1);
+                mask.keyType = KeyTypeEnum.UNKNOWN;
             }
-            return mask;
+            console.log(key, mask.keyType, this.element.value, mask.currentValue);
+        };
+        AutoMask.getAutoMask = function (el) {
+            if (el.autoMask === void 0) {
+                return el.autoMask = AutoMask.byElement(el);
+            }
+            el.autoMask.updateValue();
+            return el.autoMask;
         };
         AutoMask.byElement = function (el) {
             var mask = new AutoMask();
-            mask.dir = el.getAttribute(AttrEnum.DIRECTION) || DirectionEnum.FORWARD;
-            mask.prefix = el.getAttribute(AttrEnum.PREFIX) || '';
-            mask.suffix = el.getAttribute(AttrEnum.SUFFIX) || '';
-            mask.pattern = mask.reverseIfNeeded(el.getAttribute(AttrEnum.MASK));
-            mask.showMask = (el.getAttribute(AttrEnum.SHOW_MASK) + '').toLowerCase() === 'true' || false;
-            mask.deny = new RegExp("[^" + (el.getAttribute(AttrEnum.ACCEPT) || '\\d') + "]", 'g');
             mask.element = el;
+            mask.dir = mask.attr(AttrEnum.DIRECTION, DirectionEnum.FORWARD);
+            mask.prefix = mask.attr(AttrEnum.PREFIX, '');
+            mask.suffix = mask.attr(AttrEnum.SUFFIX, '');
+            mask.pattern = mask.reverseIfNeeded(mask.attr(AttrEnum.MASK));
+            mask.showMask = mask.attr(AttrEnum.SHOW_MASK, '').toLowerCase() === 'true' || false;
+            mask.deny = new RegExp("[^" + mask.attr(AttrEnum.ACCEPT, '\\d') + "]", 'g');
             mask.zeroPadEnabled = mask.pattern.indexOf('0') !== -1;
+            mask.keyType = KeyTypeEnum.UNKNOWN;
             var length = mask.pattern.length;
             mask.rawTotalLength = 0;
             for (var i = 0; i < length; i++) {
@@ -222,7 +246,7 @@
                     mask.rawTotalLength++;
                 }
             }
-            mask.currentValue = el.value;
+            mask.currentValue = el.value.replace(mask.deny, '');
             el.maxLength = mask.pattern.length + mask.prefix.length + mask.suffix.length + 1;
             return mask;
         };

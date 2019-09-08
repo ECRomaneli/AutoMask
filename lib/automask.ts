@@ -1,8 +1,5 @@
 (() => {
-    enum DirectionEnum {
-        FORWARD = 'forward', BACKWARD = 'backward'
-    }
-
+    
     enum AttrEnum {
         MASK = 'mask', 
         PREFIX = 'prefix',
@@ -11,26 +8,31 @@
         ACCEPT = 'accept',
         SHOW_MASK = 'show-mask'
     }
-
-    interface AutoMaskElement extends HTMLInputElement {
-        autoMask?: AutoMask
+    
+    enum DirectionEnum {
+        FORWARD = 'forward', BACKWARD = 'backward'
     }
 
-    const   DOC: Document = document,
-            MASK_SELECTOR: string = `[mask]`;
+    enum KeyTypeEnum {
+        UNKNOWN = 'unknown', BACKSPACE = 'backspace', INVALID = 'invalid', VALID = 'valid'
+    }
+
+    interface AutoMaskElement extends HTMLInputElement { autoMask?: AutoMask }
+
+    const DOC: Document = document, MASK_SELECTOR: string = `[mask]`;
 
     function main() {
         let inputs: NodeListOf<Element> = DOC.querySelectorAll(MASK_SELECTOR), i = inputs.length;
         while (i) {
             let el: AutoMaskElement = <AutoMaskElement> inputs[--i];
-            onInputChange(el);
-            el.addEventListener('input', () => { onInputChange(el); }, true);
+            onInput(el);
+            el.addEventListener('input', () => { onInput(el); }, true);
         }
     }
 
-    function onInputChange(el: AutoMaskElement): void {
+    function onInput(el: AutoMaskElement): void {
         let mask = AutoMask.getAutoMask(el),
-            rawValue = mask.getRawValue(),
+            rawValue = mask.value,
             length = mask.pattern.length,
             value = '',
             valuePos = 0;
@@ -39,9 +41,7 @@
             let maskChar = mask.pattern.charAt(i);
 
             if (isIndexOut(rawValue, valuePos)) {
-                if (!(mask.showMask || isZero(mask.pattern, i))) {
-                    break;
-                }
+                if (!(mask.showMask || isZeroPad(mask.pattern, i))) { break; }
                 value += maskChar;
             } else {
                 value += isPlaceholder(maskChar) ? rawValue.charAt(valuePos++) : maskChar;
@@ -55,19 +55,30 @@
         return index >= str.length || index < 0;
     }
 
-    function isPlaceholder(maskChar: string): boolean {
-        return  maskChar === '_' ? true :           // Placeholder
-                maskChar === '0' ? true :           // ZeroPad
-                maskChar === ''  ? true : false;    // EOF # Fix infinite loop
+    function isPlaceholder(ch: string): boolean {
+        return  ch === '_' || ch === '0' || ch === ''; // # Fix infinite loop
     }
 
-    function isZero(str: string, index: number): boolean {
+    function isZeroPad(str: string, index: number): boolean {
         while(!isIndexOut(str, index)) {
             let char = str.charAt(index++);
             if (char === '0') { return true; }
             if (char === '_') { return false; }
         }
         return false;
+    }
+
+    function isZero(_a: any, _b?: any): boolean {
+        for (let i = 0; i < length; i++) {
+            if (arguments[i] === 0) { return true; }
+        }
+        return false;
+    }
+
+    function reverseStr(str: string) {
+        let rStr = "", i = str.length;
+        while (i) { rStr += str[--i]; }
+        return rStr;
     }
 
     function ready(handler: EventListenerOrEventListenerObject): void {
@@ -83,7 +94,7 @@
         public pattern: string;
         public showMask: boolean;
         public deny: RegExp;
-        public keyPressed: string;
+        public keyType: KeyTypeEnum;
         
         private element: AutoMaskElement;
         private lastValue: string;
@@ -91,12 +102,27 @@
         private zeroPadEnabled: boolean;
         private rawTotalLength: number;
 
+        public get value(): string {
+            let value: string = this.removePrefixAndSuffix(this.element.value);
+            value = this.removeZeros(value.replace(this.deny, ''));
+            value = value.substr(0, this.rawTotalLength);
+            return this.reverseIfNeeded(value);
+        }
+
         public set value(value: string) {
             let oldSelection = this.selection;
-            if (this.lastValue !== this.currentValue) {
+            //if (this.lastValue !== this.currentValue) {
                 this.element.value = this.prefix + this.reverseIfNeeded(value) + this.suffix;
                 this.selection = this.calcNewSelection(oldSelection);
-            }
+            //}
+        }
+
+        public get elValue(): string {
+            return this.element.value;
+        }
+
+        public set elValue(value: string) {
+            this.element.value = value;
         }
 
         public get selection(): number {
@@ -107,60 +133,37 @@
             this.element.selectionStart = this.element.selectionEnd = value;
         }
 
-        public getRawValue(): string {
-            let value: string = this.removePrefixAndSuffix(this.element.value);
-            value = this.removeZeros(value.replace(this.deny, ''));
-            value = value.substr(0, this.rawTotalLength);
-            return this.reverseIfNeeded(value);
-        }
-
-        public isValidKey(): boolean {
-            if (this.keyPressed === void 0 
-             || this.keyPressed === 'backspace') { return true; }
-            return !this.deny.test(this.keyPressed);
-        }
-
         private removePrefixAndSuffix(value: string): string {
-            value = this.removeStrOccurences(value, this.prefix, 0);
-            value = this.removeStrOccurences(value, this.suffix, value.length - this.suffix.length);
-            console.log(value);
+            value = this.removePrefix(value, this.prefix);
+            value = reverseStr(this.removePrefix(reverseStr(value), reverseStr(this.suffix)));
+            // console.log(value);
             return value;
         }
 
-        public removeStrOccurences(str: string, rmStr: string, startIndex: number) {
-            if (str.indexOf(rmStr) === startIndex) {
-                if (startIndex === 0) { return str.substr(rmStr.length); }
-                return str.substring(0, startIndex);
-            }
+        public removePrefix(value: string, prefix: string) {
+            if (value.indexOf(prefix) === 0) { return value.substr(prefix.length); }
+            let length = prefix.length, shift = 0, valueChar;
 
-            let length = rmStr.length, lastStrIndex = startIndex, joinArr = [];
-            if (startIndex > 0) { joinArr.push(str.substring(0, startIndex)); }
+            for (var i = 0; i < length; i++) {
+                let prefixChar = prefix.charAt(i);
+                valueChar = value.charAt(i);
 
-
-            for (let i = 0; i < length; i++) {
-                let rmChar = rmStr.charAt(i), strIndex = startIndex + i;
-
-                if (str.charAt(strIndex) === rmChar) {
-                    lastStrIndex = strIndex + 1;
-
-                } else if (str.charAt(strIndex + 1) === rmChar) {
-                    joinArr.push(str.substring(lastStrIndex, strIndex + 1));
-                    lastStrIndex = strIndex + 2;
-                    startIndex++;
-                } else {
-                    startIndex--;
+                if (prefixChar !== valueChar) {  
+                    shift = prefixChar === value.charAt(i + 1) ? +1 : -1;
+                    break;
                 }
             }
-
-            joinArr.push(str.substr(lastStrIndex));
-            return joinArr.join('');
+            let prefixLeftIndex = i + shift;
+            if (prefixLeftIndex !== -1 && prefixLeftIndex === value.indexOf(prefix.substr(i), prefixLeftIndex)) {
+                return (shift === 1 ? valueChar : '') + value.substr(prefix.length + shift);
+            } else {
+                return value;
+            }
         }
 
         private reverseIfNeeded(str: string): string {
             if (this.dir !== DirectionEnum.BACKWARD) { return str; }
-            let rStr = "", i = str.length;
-            while (i) { rStr += str[--i]; }
-            return rStr;
+            return reverseStr(str);
         }
 
         private removeZeros(value: string): string {
@@ -176,15 +179,15 @@
             let newSelection = oldSelection - this.prefix.length;
 
             // Fix selections between the prefix
-            if (newSelection < 1) { newSelection = this.keyPressed && this.keyPressed !== 'backspace' ? 1 : 0; } 
+            if (newSelection < 1) { newSelection = this.keyType === KeyTypeEnum.BACKSPACE ? 0 : 1; } 
 
             // If not a valid key, then return to the last valid placeholder
             let sum;
-            if (!this.isValidKey()) {
+            if (this.keyType === KeyTypeEnum.INVALID) {
                 newSelection--;
                 sum = -1;
             } else {
-                sum = this.keyPressed !== 'backspace' ? +1 : -1;
+                sum = this.keyType === KeyTypeEnum.BACKSPACE ? -1 : +1;
             }
 
             while (!isPlaceholder(this.pattern.charAt(newSelection - 1))) { newSelection += sum; }
@@ -195,42 +198,56 @@
 
         private getMaxSelection(stopValue: number) {
             let length = this.pattern.length,
-                rawLength = this.getRawValue().length;
-            if (!stopValue || !rawLength) { return 0; }
+                rawLength = this.value.length;
+
+            // If stopValue or rawLength is zero, so return 0
+            if (isZero(stopValue, rawLength)) { return 0; }
+
             for (let i = 1; i < length; i++) {
                 if (isPlaceholder(this.pattern.charAt(i - 1))) {
-                    if (--rawLength < 1 || i === stopValue) { return i; }
+                    if (isZero(--rawLength) || stopValue === i) { return i; }
                 }
             }
+
             return length;
         }
 
-        public static getAutoMask(el: AutoMaskElement): AutoMask {
-            if (!el.autoMask) { return el.autoMask = AutoMask.byElement(el); }
-            
-            let mask = el.autoMask;
+        private attr(attrName: string, defaultValue?: any): any {
+            return this.element.getAttribute(attrName)|| defaultValue;
+        }
+
+        public updateValue(): void {
+            let mask = this.element.autoMask, key = this.element.value.charAt(mask.selection - 1);
             mask.lastValue = mask.currentValue;
-            mask.currentValue = mask.element.value;
+            mask.currentValue = this.element.value.replace(this.deny, '');
 
-            if (mask.currentValue.length < mask.lastValue.length) {
-                mask.keyPressed = 'backspace';
+            if (mask.currentValue.length === mask.lastValue.length + 1) {
+                mask.keyType = mask.deny.test(key) ? KeyTypeEnum.INVALID : KeyTypeEnum.VALID;
+            } else if (mask.currentValue.length === mask.lastValue.length - 1) {
+                mask.keyType = KeyTypeEnum.BACKSPACE;
             } else {
-                mask.keyPressed = mask.currentValue.charAt(mask.selection - 1);
-            }
+                mask.keyType = KeyTypeEnum.UNKNOWN;
+            }            
+            console.log(key, mask.keyType, this.element.value, mask.currentValue);
+        }
 
-            return mask;
+        public static getAutoMask(el: AutoMaskElement): AutoMask {
+            if (el.autoMask === void 0) { return el.autoMask = AutoMask.byElement(el); }
+            el.autoMask.updateValue();
+            return el.autoMask;
         }
 
         private static byElement(el: AutoMaskElement) {
             let mask: AutoMask = new AutoMask();
-            mask.dir = <DirectionEnum> el.getAttribute(AttrEnum.DIRECTION) || DirectionEnum.FORWARD;
-            mask.prefix = el.getAttribute(AttrEnum.PREFIX) || '';
-            mask.suffix = el.getAttribute(AttrEnum.SUFFIX) || '';
-            mask.pattern = mask.reverseIfNeeded(el.getAttribute(AttrEnum.MASK));
-            mask.showMask = (el.getAttribute(AttrEnum.SHOW_MASK) + '').toLowerCase() === 'true' || false;
-            mask.deny = new RegExp(`[^${el.getAttribute(AttrEnum.ACCEPT) || '\\d'}]`, 'g');
             mask.element = el;
+            mask.dir = <DirectionEnum> mask.attr(AttrEnum.DIRECTION, DirectionEnum.FORWARD);
+            mask.prefix = mask.attr(AttrEnum.PREFIX, '');
+            mask.suffix = mask.attr(AttrEnum.SUFFIX, '');
+            mask.pattern = mask.reverseIfNeeded(mask.attr(AttrEnum.MASK));
+            mask.showMask = mask.attr(AttrEnum.SHOW_MASK, '').toLowerCase() === 'true' || false;
+            mask.deny = new RegExp(`[^${mask.attr(AttrEnum.ACCEPT, '\\d')}]`, 'g');
             mask.zeroPadEnabled = mask.pattern.indexOf('0') !== -1;
+            mask.keyType = KeyTypeEnum.UNKNOWN;
             
             let length = mask.pattern.length;
             mask.rawTotalLength = 0;
@@ -238,7 +255,7 @@
                 if (isPlaceholder(mask.pattern.charAt(i))) { mask.rawTotalLength++; }
             }
 
-            mask.currentValue = el.value;
+            mask.currentValue = el.value.replace(mask.deny, '');
             el.maxLength = mask.pattern.length + mask.prefix.length + mask.suffix.length + 1;
             return mask;
         }

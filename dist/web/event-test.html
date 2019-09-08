@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Event Test</title>
+    <script>
+        (function () {
+            var events = [
+                'keydown', 'input', 'change', 'keyup', 'keypressed'
+            ];
+
+            function testEvent(eventName) {
+                document.addEventListener(eventName, function (e) {
+                    console.log(eventName, e.target, e);
+                    if (eventName === 'input' ) {
+                        e.target.value += ' input';
+                    }
+                });
+            }
+
+            events.forEach(testEvent);
+        }) ();
+    </script>
+</head>
+<body>
+    <input type="text" />
+</body>
+</html>
