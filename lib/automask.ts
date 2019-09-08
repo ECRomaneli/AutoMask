@@ -197,15 +197,14 @@
 
             for (let i = 1; i < length; i++) {
                 if (isPlaceholder(this.pattern.charAt(i - 1))) {
-                    if (rawLength === 1 || stopValue === i) { return i; }
+                    if (--rawLength === 0 || stopValue === i) { return i; }
                 }
             }
-
             return length;
         }
 
         private attr(attrName: string, defaultValue?: any): any {
-            return this.element.getAttribute(attrName)|| defaultValue;
+            return this.element.getAttribute(attrName) || defaultValue;
         }
 
         public updateValue(): void {
