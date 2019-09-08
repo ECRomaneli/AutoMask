@@ -68,13 +68,6 @@
         return false;
     }
 
-    function isZero(_a: any, _b?: any): boolean {
-        for (let i = 0; i < length; i++) {
-            if (arguments[i] === 0) { return true; }
-        }
-        return false;
-    }
-
     function reverseStr(str: string) {
         let rStr = "", i = str.length;
         while (i) { rStr += str[--i]; }
@@ -200,11 +193,11 @@
                 rawLength = this.value.length;
 
             // If stopValue or rawLength is zero, so return 0
-            if (isZero(stopValue, rawLength)) { return 0; }
+            if (stopValue === 0 || rawLength === 0) { return 0; }
 
             for (let i = 1; i < length; i++) {
                 if (isPlaceholder(this.pattern.charAt(i - 1))) {
-                    if (isZero(--rawLength) || stopValue === i) { return i; }
+                    if (rawLength === 1 || stopValue === i) { return i; }
                 }
             }
 

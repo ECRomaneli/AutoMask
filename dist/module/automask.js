@@ -64,14 +64,6 @@
         }
         return false;
     }
-    function isZero(_a, _b) {
-        for (let i = 0; i < length; i++) {
-            if (arguments[i] === 0) {
-                return true;
-            }
-        }
-        return false;
-    }
     function reverseStr(str) {
         let rStr = "", i = str.length;
         while (i) {
@@ -174,12 +166,12 @@
         getMaxSelection(stopValue) {
             let length = this.pattern.length, rawLength = this.value.length;
             // If stopValue or rawLength is zero, so return 0
-            if (isZero(stopValue, rawLength)) {
+            if (stopValue === 0 || rawLength === 0) {
                 return 0;
             }
             for (let i = 1; i < length; i++) {
                 if (isPlaceholder(this.pattern.charAt(i - 1))) {
-                    if (isZero(--rawLength) || stopValue === i) {
+                    if (rawLength === 1 || stopValue === i) {
                         return i;
                     }
                 }
@@ -223,9 +215,7 @@
             let length = mask.pattern.length;
             mask.rawTotalLength = 0;
             for (let i = 0; i < length; i++) {
-                if (isPlaceholder(mask.pattern.charAt(i))) {
-                    mask.rawTotalLength++;
-                }
+                isPlaceholder(mask.pattern.charAt(i)) && mask.rawTotalLength++;
             }
             el.maxLength = mask.pattern.length + mask.prefix.length + mask.suffix.length + 1;
             mask.currentValue = mask.value;
