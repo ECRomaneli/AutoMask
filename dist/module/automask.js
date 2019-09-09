@@ -78,7 +78,7 @@
     class AutoMask {
         get value() {
             let value = this.removePrefixAndSuffix(this.element.value);
-            value = this.removeZeros(value.replace(this.deny, '')).substr(0, this.rawTotalLength);
+            value = this.removeZeros(value.replace(this.deny, ''));
             return this.reverseIfNeeded(value);
         }
         set value(value) {
@@ -119,8 +119,8 @@
                     break;
                 }
             }
-            let prefixLeftIndex = i + shift;
-            if (prefixLeftIndex !== -1 && prefixLeftIndex === value.indexOf(prefix.substr(i), prefixLeftIndex)) {
+            let prefixLeftIndex = i + (shift === 1 ? 1 : 0);
+            if (prefixLeftIndex !== -1 && prefixLeftIndex === value.indexOf(prefix.substr(i + (shift === 1 ? 0 : 1)), prefixLeftIndex)) {
                 return (shift === 1 ? valueChar : '') + value.substr(prefix.length + shift);
             }
             else {
@@ -141,7 +141,8 @@
         }
         calcNewSelection(oldSelection) {
             if (this.dir === DirectionEnum.BACKWARD) {
-                return this.currentValue.length - this.suffix.length;
+                let lastSelection = this.elValue.length - this.suffix.length;
+                return lastSelection;
             }
             let newSelection = oldSelection - this.prefix.length;
             // Fix selections between the prefix
@@ -192,6 +193,7 @@
             else {
                 this.keyType = KeyTypeEnum.UNKNOWN;
             }
+            console.log(this.keyType);
         }
         static getAutoMask(el) {
             if (el.autoMask === void 0) {

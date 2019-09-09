@@ -157,7 +157,8 @@
         };
         AutoMask.prototype.calcNewSelection = function (oldSelection) {
             if (this.dir === DirectionEnum.BACKWARD) {
-                return this.currentValue.length - this.suffix.length;
+                var lastSelection = this.elValue.length - this.suffix.length;
+                return lastSelection;
             }
             var newSelection = oldSelection - this.prefix.length;
             // Fix selections between the prefix

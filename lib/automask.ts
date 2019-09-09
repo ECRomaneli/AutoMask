@@ -165,7 +165,8 @@
 
         private calcNewSelection(oldSelection: number): number {
             if (this.dir === DirectionEnum.BACKWARD) {
-                return this.currentValue.length - this.suffix.length;
+                let lastSelection = this.elValue.length - this.suffix.length;
+                return lastSelection;
             }
 
             let newSelection = oldSelection - this.prefix.length;
@@ -215,7 +216,8 @@
                 this.keyType = KeyTypeEnum.BACKSPACE;
             } else {
                 this.keyType = KeyTypeEnum.UNKNOWN;
-            }            
+            }
+            console.log(this.keyType);    
         }
 
         public static getAutoMask(el: AutoMaskElement): AutoMask {
