@@ -14,10 +14,10 @@
 ## Install
 
 ```
-npm i @automask
+npm i automask
 ```
 
-or just import the javascript into /dist/web into your web project.
+or just import the javascript into **/dist/web/** into your web project.
 
 ## Import
 ### Module
@@ -58,8 +58,8 @@ All AutoMask settings are enabled with HTML. Just set the attribute and use.
 - `suffix` to set an suffix;
 - `show-mask` to set whether or not to display the mask;
 - `accept` Regular Expression for accepted characters (default is only numbers);
-- [BETA] `dir` to set fill direction;
-- [FUTURE] `persist` Regular Expression to set what characters submit on form.
+- **[BETA]** `dir` to set fill direction;
+- **[FUTURE]** `persist` Regular Expression to set what characters submit on form.
 
 ### Mask
 
