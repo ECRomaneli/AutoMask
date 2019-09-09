@@ -17,7 +17,7 @@
         UNKNOWN = 'unknown', BACKSPACE = 'backspace', INVALID = 'invalid', VALID = 'valid'
     }
 
-    interface AutoMaskElement extends HTMLInputElement { autoMask?: AutoMask }
+    interface AutoMaskElement extends HTMLInputElement { autoMask?: AutoMask, distance?: number }
 
     const DOC: Document = document, MASK_SELECTOR: string = `[mask]`;
 
@@ -26,6 +26,9 @@
         while (i) {
             let el: AutoMaskElement = <AutoMaskElement> inputs[--i];
             onInput(el);
+            el.addEventListener('keydown', () => {
+                el.distance = el.value.length - el.selectionStart;
+            }, true);
             el.addEventListener('input', () => { onInput(el); }, true);
         }
     }
@@ -165,7 +168,7 @@
 
         private calcNewSelection(oldSelection: number): number {
             if (this.dir === DirectionEnum.BACKWARD) {
-                let lastSelection = this.elValue.length - this.suffix.length;
+                let lastSelection = this.elValue.length - (this.suffix.length > this.element.distance ? this.suffix.length : this.element.distance);
                 return lastSelection;
             }
 

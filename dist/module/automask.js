@@ -27,6 +27,9 @@
         while (i) {
             let el = inputs[--i];
             onInput(el);
+            el.addEventListener('keydown', () => {
+                el.distance = el.value.length - el.selectionStart;
+            }, true);
             el.addEventListener('input', () => { onInput(el); }, true);
         }
     }
@@ -79,12 +82,12 @@
         get value() {
             let value = this.removePrefixAndSuffix(this.element.value);
             value = this.removeZeros(value.replace(this.deny, ''));
-            return this.reverseIfNeeded(value);
+            return this.applyDir(value);
         }
         set value(value) {
             let oldSelection = this.selection;
             //if (this.lastValue !== this.currentValue) {
-            this.element.value = this.prefix + this.reverseIfNeeded(value) + this.suffix;
+            this.element.value = this.prefix + this.applyDir(value) + this.suffix;
             this.selection = this.calcNewSelection(oldSelection);
             //}
         }
@@ -119,15 +122,15 @@
                     break;
                 }
             }
-            let prefixLeftIndex = i + (shift === 1 ? 1 : 0);
-            if (prefixLeftIndex !== -1 && prefixLeftIndex === value.indexOf(prefix.substr(i + (shift === 1 ? 0 : 1)), prefixLeftIndex)) {
+            let moveIndex = shift === 1 ? 1 : 0, prefixLeftIndex = i + moveIndex;
+            if (prefixLeftIndex !== -1 && prefixLeftIndex === value.indexOf(prefix.substr(i + 1 - moveIndex), prefixLeftIndex)) {
                 return (shift === 1 ? valueChar : '') + value.substr(prefix.length + shift);
             }
             else {
                 return value;
             }
         }
-        reverseIfNeeded(str) {
+        applyDir(str) {
             if (this.dir !== DirectionEnum.BACKWARD) {
                 return str;
             }
@@ -141,7 +144,7 @@
         }
         calcNewSelection(oldSelection) {
             if (this.dir === DirectionEnum.BACKWARD) {
-                let lastSelection = this.elValue.length - this.suffix.length;
+                let lastSelection = this.elValue.length - (this.suffix.length > this.element.distance ? this.suffix.length : this.element.distance);
                 return lastSelection;
             }
             let newSelection = oldSelection - this.prefix.length;
@@ -208,15 +211,15 @@
             mask.dir = mask.attr(AttrEnum.DIRECTION, DirectionEnum.FORWARD);
             mask.prefix = mask.attr(AttrEnum.PREFIX, '');
             mask.suffix = mask.attr(AttrEnum.SUFFIX, '');
-            mask.pattern = mask.reverseIfNeeded(mask.attr(AttrEnum.MASK));
+            mask.pattern = mask.applyDir(mask.attr(AttrEnum.MASK));
             mask.showMask = mask.attr(AttrEnum.SHOW_MASK, '').toLowerCase() === 'true' || false;
             mask.deny = new RegExp(`[^${mask.attr(AttrEnum.ACCEPT, '\\d')}]`, 'g');
             mask.zeroPadEnabled = mask.pattern.indexOf('0') !== -1;
             mask.keyType = KeyTypeEnum.UNKNOWN;
             let length = mask.pattern.length;
-            mask.rawTotalLength = 0;
+            mask.maxRawLength = 0;
             for (let i = 0; i < length; i++) {
-                isPlaceholder(mask.pattern.charAt(i)) && mask.rawTotalLength++;
+                isPlaceholder(mask.pattern.charAt(i)) && mask.maxRawLength++;
             }
             el.maxLength = mask.pattern.length + mask.prefix.length + mask.suffix.length + 1;
             mask.currentValue = mask.value;

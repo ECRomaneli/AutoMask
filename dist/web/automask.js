@@ -26,6 +26,9 @@
         var _loop_1 = function () {
             var el = inputs[--i];
             onInput(el);
+            el.addEventListener('keydown', function () {
+                el.distance = el.value.length - el.selectionStart;
+            }, true);
             el.addEventListener('input', function () { onInput(el); }, true);
         };
         while (i) {
@@ -157,7 +160,7 @@
         };
         AutoMask.prototype.calcNewSelection = function (oldSelection) {
             if (this.dir === DirectionEnum.BACKWARD) {
-                var lastSelection = this.elValue.length - this.suffix.length;
+                var lastSelection = this.elValue.length - (this.suffix.length > this.element.distance ? this.suffix.length : this.element.distance);
                 return lastSelection;
             }
             var newSelection = oldSelection - this.prefix.length;
