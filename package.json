@@ -1,7 +1,7 @@
 {
     "name": "automask",
-    "version": "0.2.0",
-    "description": "Auto masks your inputs without setting JavaScript.",
+    "version": "0.3.0",
+    "description": "Auto mask your inputs without setting JavaScript.",
     "scripts": {
         "build": "sh build.sh",
         "test": "echo \"Error: no test specified\" && exit 1"
