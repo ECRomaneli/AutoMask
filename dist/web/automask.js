@@ -33,7 +33,7 @@
         }
     }
     function onInput(el) {
-        var mask = AutoMask.getAutoMask(el), rawValue = mask.value, length = mask.pattern.length, value = '', valuePos = 0;
+        var mask = AutoMask.getAutoMask(el), rawValue = mask.currentValue, length = mask.pattern.length, value = '', valuePos = 0;
         for (var i = 0; i < length; i++) {
             var maskChar = mask.pattern.charAt(i);
             if (isIndexOut(rawValue, valuePos)) {
@@ -83,7 +83,7 @@
         Object.defineProperty(AutoMask.prototype, "value", {
             get: function () {
                 var value = this.removePrefixAndSuffix(this.element.value);
-                value = this.removeZeros(value.replace(this.deny, '')).substr(0, this.rawTotalLength);
+                value = this.removeZeros(value.replace(this.deny, ''));
                 return this.reverseIfNeeded(value);
             },
             set: function (value) {
@@ -135,8 +135,8 @@
                     break;
                 }
             }
-            var prefixLeftIndex = i + shift;
-            if (prefixLeftIndex !== -1 && prefixLeftIndex === value.indexOf(prefix.substr(i), prefixLeftIndex)) {
+            var prefixLeftIndex = i + (shift === 1 ? 1 : 0);
+            if (prefixLeftIndex !== -1 && prefixLeftIndex === value.indexOf(prefix.substr(i + (shift === 1 ? 0 : 1)), prefixLeftIndex)) {
                 return (shift === 1 ? valueChar : '') + value.substr(prefix.length + shift);
             }
             else {
@@ -161,13 +161,12 @@
             }
             var newSelection = oldSelection - this.prefix.length;
             // Fix selections between the prefix
-            if (newSelection < 1) {
-                newSelection = this.keyType === KeyTypeEnum.BACKSPACE ? 0 : 1;
+            if (newSelection < 0) {
+                newSelection = this.keyType === KeyTypeEnum.VALID ? 1 : 0;
             }
             // If not a valid key, then return to the last valid placeholder
             var sum;
             if (this.keyType === KeyTypeEnum.INVALID) {
-                newSelection--;
                 sum = -1;
             }
             else {
@@ -201,7 +200,7 @@
             this.lastValue = this.currentValue;
             this.currentValue = this.value;
             if (this.currentValue.length === this.lastValue.length + 1) {
-                this.keyType = this.deny.test(this.element.value.charAt(this.selection - 1)) ? KeyTypeEnum.INVALID : KeyTypeEnum.VALID;
+                this.keyType = this.deny.test(this.elValue.charAt(this.selection - 1)) ? KeyTypeEnum.INVALID : KeyTypeEnum.VALID;
             }
             else if (this.currentValue.length === this.lastValue.length - 1) {
                 this.keyType = KeyTypeEnum.BACKSPACE;
@@ -209,6 +208,7 @@
             else {
                 this.keyType = KeyTypeEnum.UNKNOWN;
             }
+            console.log(this.keyType);
         };
         AutoMask.getAutoMask = function (el) {
             if (el.autoMask === void 0) {

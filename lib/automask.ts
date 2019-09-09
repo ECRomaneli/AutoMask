@@ -32,7 +32,7 @@
 
     function onInput(el: AutoMaskElement): void {
         let mask = AutoMask.getAutoMask(el),
-            rawValue = mask.value,
+            rawValue = mask.currentValue,
             length = mask.pattern.length,
             value = '',
             valuePos = 0;
@@ -86,18 +86,18 @@
         public suffix: string;
         public pattern: string;
         public showMask: boolean;
+        public currentValue: string;
         public deny: RegExp;
         public keyType: KeyTypeEnum;
         
         private element: AutoMaskElement;
         private lastValue: string;
-        private currentValue: string;
         private zeroPadEnabled: boolean;
         private rawTotalLength: number;
 
         public get value(): string {
             let value: string = this.removePrefixAndSuffix(this.element.value);
-            value = this.removeZeros(value.replace(this.deny, '')).substr(0, this.rawTotalLength);
+            value = this.removeZeros(value.replace(this.deny, ''));
             return this.reverseIfNeeded(value);
         }
 
@@ -145,8 +145,8 @@
                     break;
                 }
             }
-            let prefixLeftIndex = i + shift;
-            if (prefixLeftIndex !== -1 && prefixLeftIndex === value.indexOf(prefix.substr(i), prefixLeftIndex)) {
+            let prefixLeftIndex = i + (shift === 1 ? 1 : 0);
+            if (prefixLeftIndex !== -1 && prefixLeftIndex === value.indexOf(prefix.substr(i + (shift === 1 ? 0 : 1)), prefixLeftIndex)) {
                 return (shift === 1 ? valueChar : '') + value.substr(prefix.length + shift);
             } else {
                 return value;
@@ -169,14 +169,12 @@
             }
 
             let newSelection = oldSelection - this.prefix.length;
-
             // Fix selections between the prefix
-            if (newSelection < 1) { newSelection = this.keyType === KeyTypeEnum.BACKSPACE ? 0 : 1; } 
+            if (newSelection < 0) { newSelection = this.keyType === KeyTypeEnum.VALID ? 1 : 0; } 
 
             // If not a valid key, then return to the last valid placeholder
             let sum;
             if (this.keyType === KeyTypeEnum.INVALID) {
-                newSelection--;
                 sum = -1;
             } else {
                 sum = this.keyType === KeyTypeEnum.BACKSPACE ? -1 : +1;
@@ -212,7 +210,7 @@
             this.currentValue = this.value;
 
             if (this.currentValue.length === this.lastValue.length + 1) {
-                this.keyType = this.deny.test(this.element.value.charAt(this.selection - 1)) ? KeyTypeEnum.INVALID : KeyTypeEnum.VALID;
+                this.keyType = this.deny.test(this.elValue.charAt(this.selection - 1)) ? KeyTypeEnum.INVALID : KeyTypeEnum.VALID;
             } else if (this.currentValue.length === this.lastValue.length - 1) {
                 this.keyType = KeyTypeEnum.BACKSPACE;
             } else {
