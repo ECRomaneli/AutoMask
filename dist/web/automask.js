@@ -94,6 +94,10 @@
         Object.defineProperty(AutoMask.prototype, "value", {
             get: function () {
                 var value = this.removePrefixAndSuffix(this.element.value);
+                if (value.length > this.pattern.length) {
+                    var substrIndex = this.dir === DirectionEnum.FORWARD ? 0 : 1;
+                    value = value.substr(substrIndex, this.pattern.length);
+                }
                 value = this.removeZeros(value.replace(this.deny, ''));
                 return this.applyDir(value);
             },
