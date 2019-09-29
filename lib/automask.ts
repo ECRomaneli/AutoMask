@@ -6,6 +6,7 @@
         SUFFIX = 'suffix', 
         DIRECTION = 'dir',
         ACCEPT = 'accept',
+        PERSIST = 'persist',
         SHOW_MASK = 'show-mask'
     }
     
@@ -77,6 +78,12 @@
         return rStr;
     }
 
+    function joinMatch(str: string, pattern: RegExp): string {
+        let match = str.match(pattern);
+        if (match === null) { return ''; }
+        return match.join('');
+    }
+
     function ready(handler: EventListenerOrEventListenerObject): void {
         DOC.addEventListener('DOMContentLoaded', handler);
     }
@@ -91,6 +98,7 @@
         public showMask: boolean;
         public currentValue: string;
         public deny: RegExp;
+        public persist: {element: HTMLInputElement, pattern: RegExp};
         public keyType: KeyTypeEnum;
         
         private element: AutoMaskElement;
@@ -106,10 +114,14 @@
 
         public set value(value: string) {
             let oldSelection = this.selection;
-            //if (this.lastValue !== this.currentValue) {
-                this.element.value = this.prefix + this.applyDir(value) + this.suffix;
-                this.selection = this.calcNewSelection(oldSelection);
-            //}
+            value = this.prefix + this.applyDir(value) + this.suffix;
+
+            if (this.persist !== void 0) {
+                this.persist.element.value = joinMatch(value, this.persist.pattern);
+            }
+
+            this.element.value = value;
+            this.selection = this.calcNewSelection(oldSelection);            
         }
 
         public get elValue(): string {
@@ -237,9 +249,23 @@
             mask.suffix = mask.attr(AttrEnum.SUFFIX, '');
             mask.pattern = mask.applyDir(mask.attr(AttrEnum.MASK));
             mask.showMask = mask.attr(AttrEnum.SHOW_MASK, '').toLowerCase() === 'true' || false;
-            mask.deny = new RegExp(`[^${mask.attr(AttrEnum.ACCEPT, '\\d')}]`, 'g');
+            mask.deny = new RegExp(`[^${mask.attr(AttrEnum.ACCEPT, '\\d')}]+`, 'g');
             mask.zeroPadEnabled = mask.pattern.indexOf('0') !== -1;
             mask.keyType = KeyTypeEnum.UNKNOWN;
+
+            let persistPattern = mask.attr(AttrEnum.PERSIST),
+                name = el.getAttribute('name');
+            if (persistPattern && name) {
+                let element = DOC.createElement('input');
+                el.setAttribute('name', `mask-${name}`);
+                element.setAttribute('type', 'hidden');
+                element.setAttribute('name', name);
+                el.parentNode.appendChild(element);
+                mask.persist = {
+                    element: element,
+                    pattern: new RegExp(`[${persistPattern}]+`, 'g')
+                };
+            }
             
             let length = mask.pattern.length;
             mask.maxRawLength = 0;

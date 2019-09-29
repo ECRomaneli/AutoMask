@@ -6,6 +6,7 @@
         AttrEnum["SUFFIX"] = "suffix";
         AttrEnum["DIRECTION"] = "dir";
         AttrEnum["ACCEPT"] = "accept";
+        AttrEnum["PERSIST"] = "persist";
         AttrEnum["SHOW_MASK"] = "show-mask";
     })(AttrEnum || (AttrEnum = {}));
     var DirectionEnum;
@@ -76,6 +77,13 @@
         }
         return rStr;
     }
+    function joinMatch(str, pattern) {
+        var match = str.match(pattern);
+        if (match === null) {
+            return '';
+        }
+        return match.join('');
+    }
     function ready(handler) {
         DOC.addEventListener('DOMContentLoaded', handler);
     }
@@ -91,10 +99,12 @@
             },
             set: function (value) {
                 var oldSelection = this.selection;
-                //if (this.lastValue !== this.currentValue) {
-                this.element.value = this.prefix + this.applyDir(value) + this.suffix;
+                value = this.prefix + this.applyDir(value) + this.suffix;
+                if (this.persist !== void 0) {
+                    this.persist.element.value = joinMatch(value, this.persist.pattern);
+                }
+                this.element.value = value;
                 this.selection = this.calcNewSelection(oldSelection);
-                //}
             },
             enumerable: true,
             configurable: true
@@ -229,9 +239,21 @@
             mask.suffix = mask.attr(AttrEnum.SUFFIX, '');
             mask.pattern = mask.applyDir(mask.attr(AttrEnum.MASK));
             mask.showMask = mask.attr(AttrEnum.SHOW_MASK, '').toLowerCase() === 'true' || false;
-            mask.deny = new RegExp("[^" + mask.attr(AttrEnum.ACCEPT, '\\d') + "]", 'g');
+            mask.deny = new RegExp("[^" + mask.attr(AttrEnum.ACCEPT, '\\d') + "]+", 'g');
             mask.zeroPadEnabled = mask.pattern.indexOf('0') !== -1;
             mask.keyType = KeyTypeEnum.UNKNOWN;
+            var persistPattern = mask.attr(AttrEnum.PERSIST), name = el.getAttribute('name');
+            if (persistPattern && name) {
+                var element = DOC.createElement('input');
+                el.setAttribute('name', "mask-" + name);
+                element.setAttribute('type', 'hidden');
+                element.setAttribute('name', name);
+                el.parentNode.appendChild(element);
+                mask.persist = {
+                    element: element,
+                    pattern: new RegExp("[" + persistPattern + "]+", 'g')
+                };
+            }
             var length = mask.pattern.length;
             mask.maxRawLength = 0;
             for (var i = 0; i < length; i++) {
