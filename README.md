@@ -46,7 +46,7 @@ All settings are usable on HTML and works on IE11+ browsers.
 <input mask="__0,0" dir="backward" suffix="%" />
 
 <!-- Money -->
-<input  mask="___.__0,00" dir="backward" prefix="$ " />
+<input mask="___.__0,00" dir="backward" prefix="$ " persist="\d," />
 ```
 
 ## Settings
@@ -58,8 +58,8 @@ All AutoMask settings are enabled with HTML. Just set the attribute and use.
 - `suffix` to set an suffix;
 - `show-mask` to set whether or not to display the mask;
 - `accept` Regular Expression for accepted characters (default is only numbers);
+- `persist` Regular Expression to set what characters submit on form.
 - **[BETA]** `dir` to set fill direction;
-- **[FUTURE]** `persist` Regular Expression to set what characters submit on form.
 
 ### Mask
 
