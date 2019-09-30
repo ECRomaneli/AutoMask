@@ -18,8 +18,8 @@
      */
     let DirectionEnum;
     (function (DirectionEnum) {
-        DirectionEnum["FORWARD"] = "ltr";
-        DirectionEnum["BACKWARD"] = "rtl";
+        DirectionEnum["FORWARD"] = "forward";
+        DirectionEnum["BACKWARD"] = "backward";
     })(DirectionEnum || (DirectionEnum = {}));
     /**
      * Key pressed type.

@@ -16,7 +16,7 @@
      * Text direction.
      */
     enum DirectionEnum {
-        FORWARD = 'ltr', BACKWARD = 'rtl'
+        FORWARD = 'forward', BACKWARD = 'backward'
     }
 
     /**
