@@ -1,30 +1,45 @@
 (() => {
-    
+    /**
+     * HTML Mask Element Attributes.
+     */
     enum AttrEnum {
         MASK = 'mask', 
         PREFIX = 'prefix',
         SUFFIX = 'suffix', 
         DIRECTION = 'dir',
         ACCEPT = 'accept',
+        PERSIST = 'persist',
         SHOW_MASK = 'show-mask'
     }
     
+    /**
+     * Text direction.
+     */
     enum DirectionEnum {
         FORWARD = 'forward', BACKWARD = 'backward'
     }
 
+    /**
+     * Key pressed type.
+     */
     enum KeyTypeEnum {
         UNKNOWN = 'unknown', BACKSPACE = 'backspace', INVALID = 'invalid', VALID = 'valid'
     }
 
-    interface AutoMaskElement extends HTMLInputElement { autoMask?: AutoMask, distance?: number }
+    /**
+     * Interface to implement mask properties to the input elements.
+     */
+    interface HTMLMaskElement extends HTMLInputElement { autoMask?: AutoMask, distance?: number }
 
-    const DOC: Document = document, MASK_SELECTOR: string = `[mask]`;
+    const DOC: Document = document, MASK_SELECTOR: string = `[mask]`, LEADING_ZEROS_PATTERN = /0+$/;
 
+    /**
+     * Main function. Get all HTMLMaskElements and initialize with the passed attributes.
+     */
     function main() {
         let inputs: NodeListOf<Element> = DOC.querySelectorAll(MASK_SELECTOR), i = inputs.length;
         while (i) {
-            let el: AutoMaskElement = <AutoMaskElement> inputs[--i];
+            let el: HTMLMaskElement = <HTMLMaskElement> inputs[--i];
             onInput(el);
             el.addEventListener('keydown', () => {
                 el.distance = el.value.length - el.selectionStart;
@@ -33,7 +48,11 @@
         }
     }
 
-    function onInput(el: AutoMaskElement): void {
+    /**
+     * On input, update mask with the new element value.
+     * @param el HTMLMaskElement
+     */
+    function onInput(el: HTMLMaskElement): void {
         let mask = AutoMask.getAutoMask(el),
             rawValue = mask.currentValue,
             length = mask.pattern.length,
@@ -54,14 +73,29 @@
         mask.value = value;
     }
 
+    /**
+     * Verify if actual index position is greater than string size.
+     * @param str String to get size.
+     * @param index Actual index.
+     */
     function isIndexOut(str: string, index: number): boolean {
         return index >= str.length || index < 0;
     }
 
+    /**
+     * Verify if char is a placeholder.
+     * [FIX] Fix infinite loop adding empty string to the list ('').
+     * @param ch Char to be checked.
+     */
     function isPlaceholder(ch: string): boolean {
-        return  ch === '_' || ch === '0' || ch === ''; // # Fix infinite loop
+        return  ch === '_' || ch === '0' || ch === '';
     }
 
+    /**
+     * Verify if char at index position is a zeropad. Just placeholders are elegible.
+     * @param str String to get char.
+     * @param index Index to be getted.
+     */
     function isZeroPad(str: string, index: number): boolean {
         while(!isIndexOut(str, index)) {
             let char = str.charAt(index++);
@@ -71,16 +105,38 @@
         return false;
     }
 
+    /**
+     * Reverse string.
+     * @param str String.
+     */
     function reverseStr(str: string) {
         let rStr = "", i = str.length;
         while (i) { rStr += str[--i]; }
         return rStr;
     }
 
+    /**
+     * Join the matched values or return empty string.
+     * @param str Raw string.
+     * @param pattern RegExp pattern.
+     */
+    function joinMatch(str: string, pattern: RegExp): string {
+        let match = str.match(pattern);
+        if (match === null) { return ''; }
+        return match.join('');
+    }
+
+    /**
+     * On Ready function.
+     * @param handler handler.
+     */
     function ready(handler: EventListenerOrEventListenerObject): void {
         DOC.addEventListener('DOMContentLoaded', handler);
     }
 
+    /**
+     * On document ready, execute main function.
+     */
     ready(main);
 
     class AutoMask {
@@ -91,25 +147,48 @@
         public showMask: boolean;
         public currentValue: string;
         public deny: RegExp;
+        public persist: {element: HTMLInputElement, pattern: RegExp};
         public keyType: KeyTypeEnum;
         
-        private element: AutoMaskElement;
+        private element: HTMLMaskElement;
         private lastValue: string;
         private zeroPadEnabled: boolean;
         private maxRawLength: number;
 
+        /**
+         * Remove prefix, suffix, overflows, leading zeros, deny chars and apply direction (invert value).
+         */
         public get value(): string {
             let value: string = this.removePrefixAndSuffix(this.element.value);
-            value = this.removeZeros(value.replace(this.deny, ''));
-            return this.applyDir(value);
+
+            // Remove overflow char. Fix maxlength zeropad bug
+            if (value.length > this.pattern.length) {
+                let substrIndex = this.dir === DirectionEnum.FORWARD ? 0 : 1;
+                value = value.substr(substrIndex, this.pattern.length);
+            }
+            
+            // Remove leading zeros, 
+            return this.removeZeros(this.applyDir(value.replace(this.deny, '')));
         }
 
+        /**
+         * Set value restauring original direction and setting persist value if needed.
+         * After, calc the new selection position.
+         * @param value value.
+         */
         public set value(value: string) {
             let oldSelection = this.selection;
-            //if (this.lastValue !== this.currentValue) {
-                this.element.value = this.prefix + this.applyDir(value) + this.suffix;
-                this.selection = this.calcNewSelection(oldSelection);
-            //}
+
+            // Restaure value direction and insert prefix and suffix
+            value = this.prefix + this.applyDir(value) + this.suffix;
+
+            // Set persist value
+            if (this.persist !== void 0) {
+                this.persist.element.value = joinMatch(value, this.persist.pattern);
+            }
+
+            this.element.value = value;
+            this.selection = this.calcNewSelection(oldSelection);            
         }
 
         public get elValue(): string {
@@ -128,13 +207,21 @@
             this.element.selectionStart = this.element.selectionEnd = value;
         }
 
+        /**
+         * Remove prefix and suffix.
+         * @param value Value.
+         */
         private removePrefixAndSuffix(value: string): string {
             value = this.removePrefix(value, this.prefix);
             value = reverseStr(this.removePrefix(reverseStr(value), reverseStr(this.suffix)));
-            // console.log(value);
             return value;
         }
 
+        /**
+         * Prefix removal logic (used to remove suffix too, just reverse all).
+         * @param value Value to remove prefix.
+         * @param prefix Prefix.
+         */
         public removePrefix(value: string, prefix: string) {
             if (value.indexOf(prefix) === 0) { return value.substr(prefix.length); }
             let length = prefix.length, shift = 0, valueChar;
@@ -148,24 +235,36 @@
                     break;
                 }
             }
-            let moveIndex = shift === 1 ? 1 : 0, prefixLeftIndex = i + moveIndex;
-            if (prefixLeftIndex !== -1 && prefixLeftIndex === value.indexOf(prefix.substr(i + 1 - moveIndex), prefixLeftIndex)) {
+            let positiveShift = shift === 1 ? 1 : 0, leftPrefixIndex = i + positiveShift;
+            if (leftPrefixIndex !== -1 && leftPrefixIndex === value.indexOf(prefix.substr(i + 1 - positiveShift), leftPrefixIndex)) {
                 return (shift === 1 ? valueChar : '') + value.substr(prefix.length + shift);
             } else {
                 return value;
             }
         }
 
+        /**
+         * Apply direction. Reverse if needed.
+         * @param str String.
+         */
         private applyDir(str: string): string {
             if (this.dir !== DirectionEnum.BACKWARD) { return str; }
             return reverseStr(str);
         }
 
-        private removeZeros(value: string): string {
-            if (!this.zeroPadEnabled) { return value; }
-            return value.replace(this.dir === DirectionEnum.FORWARD ? /0*$/ : /^0*/, '');
+        /**
+         * Remove leading zeros.
+         * @param str String to remove zeros.
+         */
+        private removeZeros(str: string): string {
+            if (!this.zeroPadEnabled) { return str; }
+            return str.replace(LEADING_ZEROS_PATTERN, '');
         }
 
+        /**
+         * Calc new selection position.
+         * @param oldSelection Old selection.
+         */
         private calcNewSelection(oldSelection: number): number {
             if (this.dir === DirectionEnum.BACKWARD) {
                 let lastSelection = this.elValue.length - (this.suffix.length > this.element.distance ? this.suffix.length : this.element.distance);
@@ -190,25 +289,38 @@
             return this.getMaxSelection(newSelection) + this.prefix.length;
         }
 
+        /**
+         * 
+         * @param stopValue 
+         */
         private getMaxSelection(stopValue: number) {
             let length = this.pattern.length,
-                rawLength = this.value.length;
+                valueLength = this.value.length;
 
-            // If stopValue or rawLength is zero, so return 0
-            if (stopValue === 0 || rawLength === 0) { return 0; }
+            // If stopValue or valueLength is zero, return 0
+            if (stopValue === 0 || valueLength === 0) { return 0; }
 
             for (let i = 1; i < length; i++) {
                 if (isPlaceholder(this.pattern.charAt(i - 1))) {
-                    if (--rawLength === 0 || stopValue === i) { return i; }
+                    if (--valueLength === 0 || stopValue === i) { return i; }
                 }
             }
             return length;
         }
 
+        /**
+         * Get element attribute or default value.
+         * @param attrName Attribute name.
+         * @param defaultValue Default value.
+         */
         private attr(attrName: string, defaultValue?: any): any {
             return this.element.getAttribute(attrName) || defaultValue;
         }
 
+        /**
+         * Update last value and current value setting keyboard type too.
+         * [TODO] Keyboard type may have some issues. Fix it.
+         */
         public updateValue(): void {
             this.lastValue = this.currentValue;
             this.currentValue = this.value;
@@ -223,13 +335,21 @@
             console.log(this.keyType);    
         }
 
-        public static getAutoMask(el: AutoMaskElement): AutoMask {
+        /**
+         * Get element AutoMask object, and create if not exists.
+         * @param el HTMLMaskElement
+         */
+        public static getAutoMask(el: HTMLMaskElement): AutoMask {
             if (el.autoMask === void 0) { return el.autoMask = AutoMask.byElement(el); }
             el.autoMask.updateValue();
             return el.autoMask;
         }
 
-        private static byElement(el: AutoMaskElement) {
+        /**
+         * Create AutoMask object into element and configure the mask with the element attributes.
+         * @param el HTMLMaskElement.
+         */
+        private static byElement(el: HTMLMaskElement) {
             let mask: AutoMask = new AutoMask();
             mask.element = el;
             mask.dir = <DirectionEnum> mask.attr(AttrEnum.DIRECTION, DirectionEnum.FORWARD);
@@ -237,9 +357,23 @@
             mask.suffix = mask.attr(AttrEnum.SUFFIX, '');
             mask.pattern = mask.applyDir(mask.attr(AttrEnum.MASK));
             mask.showMask = mask.attr(AttrEnum.SHOW_MASK, '').toLowerCase() === 'true' || false;
-            mask.deny = new RegExp(`[^${mask.attr(AttrEnum.ACCEPT, '\\d')}]`, 'g');
+            mask.deny = new RegExp(`[^${mask.attr(AttrEnum.ACCEPT, '\\d')}]+`, 'g');
             mask.zeroPadEnabled = mask.pattern.indexOf('0') !== -1;
             mask.keyType = KeyTypeEnum.UNKNOWN;
+
+            let persistPattern = mask.attr(AttrEnum.PERSIST),
+                name = el.getAttribute('name');
+            if (persistPattern && name) {
+                let element = DOC.createElement('input');
+                el.setAttribute('name', `mask-${name}`);
+                element.setAttribute('type', 'hidden');
+                element.setAttribute('name', name);
+                el.parentNode.appendChild(element);
+                mask.persist = {
+                    element: element,
+                    pattern: new RegExp(`[${persistPattern}]+`, 'g')
+                };
+            }
             
             let length = mask.pattern.length;
             mask.maxRawLength = 0;
